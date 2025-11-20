@@ -1,6 +1,6 @@
 'use strict';
 
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { getDb } from './db';
 
 const saltRounds = 10;

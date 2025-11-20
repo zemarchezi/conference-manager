@@ -65,7 +65,7 @@ export default function Home() {
               <p>Comprehensive peer review workflow with scoring and recommendations.</p>
             </div>
             <div className="feature-card">
-              <h3>👥 User Management</h3>
+              <h3>�� User Management</h3>
               <p>Role-based access control for organizers, reviewers, and authors.</p>
             </div>
           </div>
@@ -142,6 +142,7 @@ export default function Home() {
           display: flex;
           gap: 1rem;
           justify-content: center;
+          flex-wrap: wrap;
         }
 
         .btn {
@@ -151,6 +152,8 @@ export default function Home() {
           font-weight: 600;
           transition: all 0.3s;
           display: inline-block;
+          cursor: pointer;
+          border: 2px solid transparent;
         }
 
         .btn-primary {
@@ -177,6 +180,12 @@ export default function Home() {
         .btn-small {
           padding: 0.5rem 1rem;
           font-size: 0.9rem;
+          background: #667eea;
+          color: white;
+        }
+
+        .btn-small:hover {
+          background: #5568d3;
         }
 
         .features {
@@ -271,12 +280,12 @@ export default function Home() {
           margin-top: 1rem;
         }
 
-        .footer-links a {
+        .footer-links :global(a) {
           color: #667eea;
           text-decoration: none;
         }
 
-        .footer-links a:hover {
+        .footer-links :global(a):hover {
           text-decoration: underline;
         }
 
@@ -287,6 +296,7 @@ export default function Home() {
 
           .hero-actions {
             flex-direction: column;
+            align-items: center;
           }
         }
       `}</style>
