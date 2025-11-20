@@ -1,0 +1,1 @@
+Complete conferences table migration

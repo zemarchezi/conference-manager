@@ -1,0 +1,1 @@
+Complete session table migration

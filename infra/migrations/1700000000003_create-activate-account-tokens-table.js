@@ -1,0 +1,1 @@
+Complete activation tokens table migration
