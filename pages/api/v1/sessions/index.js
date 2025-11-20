@@ -25,20 +25,23 @@ async function login(request, response) {
       ]);
     }
 
-    const authenticatedUser = await authentication.login({
+    // authentication.login returns { user, session }
+    const result = await authentication.login({
       email,
       password,
     });
 
-    const sessionToken = await session.create(authenticatedUser.id);
-
-    response.setHeader('Set-Cookie', `session_id=${sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`);
+    // Set the session token in a cookie
+    response.setHeader(
+      'Set-Cookie',
+      `session_id=${result.session.token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 30}`
+    );
 
     return response.status(201).json({
-      id: authenticatedUser.id,
-      username: authenticatedUser.username,
-      email: authenticatedUser.email,
-      features: authenticatedUser.features,
+      id: result.user.id,
+      username: result.user.username,
+      email: result.user.email,
+      features: result.user.features,
     });
   } catch (error) {
     if (error.name === 'ValidationError') {
@@ -65,7 +68,7 @@ async function logout(request, response) {
       throw new validator.UnauthorizedError('No session found');
     }
 
-    await session.expireByToken(sessionToken);
+    await session.deleteByToken(sessionToken);
 
     response.setHeader('Set-Cookie', 'session_id=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0');
 

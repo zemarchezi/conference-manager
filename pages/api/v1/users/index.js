@@ -15,6 +15,9 @@ export default async function handler(request, response) {
 
 async function createUser(request, response) {
   try {
+    // Debug: Log what we're receiving
+    console.log('Request body:', request.body);
+    
     validator.validateUserCreation(request.body);
 
     const newUser = await controller.create({
@@ -29,7 +32,7 @@ async function createUser(request, response) {
     if (error.name === 'ValidationError') {
       return response.status(400).json({
         error: error.message,
-        details: error.errors,
+        details: error.details,
       });
     }
 

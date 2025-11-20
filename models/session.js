@@ -1,30 +1,40 @@
 import database from 'infra/database.js';
-import { randomBytes } from 'crypto';
+import crypto from 'crypto';
 
 async function create(userId) {
-  const token = randomBytes(48).toString('base64');
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  console.log('Session.create called with userId:', userId); // DEBUG
+  
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
+
+  console.log('Inserting session with values:', { userId, token, expiresAt }); // DEBUG
 
   const query = {
     text: `
-      INSERT INTO sessions (token, user_id, expires_at)
+      INSERT INTO sessions (user_id, token, expires_at)
       VALUES ($1, $2, $3)
-      RETURNING id, token, user_id, expires_at, created_at;
+      RETURNING id, user_id, token, expires_at, created_at
     `,
-    values: [token, userId, expiresAt],
+    values: [userId, token, expiresAt],
   };
 
+  console.log('Query:', query); // DEBUG
+
   const result = await database.query(query);
+  
+  console.log('Session created:', result.rows[0]); // DEBUG
+  
   return result.rows[0];
 }
 
-async function findOneValidByToken(token) {
+async function findByToken(token) {
   const query = {
     text: `
-      SELECT * FROM sessions
-      WHERE token = $1
-        AND expires_at > now()
-      LIMIT 1;
+      SELECT s.*, u.username, u.email, u.features
+      FROM sessions s
+      JOIN users u ON s.user_id = u.id
+      WHERE s.token = $1
     `,
     values: [token],
   };
@@ -33,35 +43,36 @@ async function findOneValidByToken(token) {
   return result.rows[0];
 }
 
-async function expireById(sessionId) {
+async function deleteByToken(token) {
   const query = {
-    text: `
-      UPDATE sessions
-      SET expires_at = now()
-      WHERE id = $1;
-    `,
-    values: [sessionId],
-  };
-
-  await database.query(query);
-}
-
-async function expireByToken(token) {
-  const query = {
-    text: `
-      UPDATE sessions
-      SET expires_at = now()
-      WHERE token = $1;
-    `,
+    text: 'DELETE FROM sessions WHERE token = $1',
     values: [token],
   };
 
   await database.query(query);
 }
 
-export default Object.freeze({
+async function deleteExpired() {
+  const query = {
+    text: 'DELETE FROM sessions WHERE expires_at < NOW()',
+  };
+
+  await database.query(query);
+}
+
+async function deleteByUserId(userId) {
+  const query = {
+    text: 'DELETE FROM sessions WHERE user_id = $1',
+    values: [userId],
+  };
+
+  await database.query(query);
+}
+
+export default {
   create,
-  findOneValidByToken,
-  expireById,
-  expireByToken,
-});
+  findByToken,
+  deleteByToken,
+  deleteExpired,
+  deleteByUserId,
+};
