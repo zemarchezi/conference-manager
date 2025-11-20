@@ -67,7 +67,7 @@ async function findOneById(reviewId) {
   const query = {
     text: `
       SELECT 
-        r.*,
+        r.*, 
         u.username as reviewer_username,
         a.title as abstract_title
       FROM reviews r
@@ -119,10 +119,21 @@ async function getAverageScore(abstractId) {
   return result.rows[0];
 }
 
+async function deleteById(reviewId) {
+  const query = {
+    text: 'DELETE FROM reviews WHERE id = $1 RETURNING *;',
+    values: [reviewId],
+  };
+
+  const result = await database.query(query);
+  return result.rows[0];
+}
+
 export default Object.freeze({
   create,
   findAll,
   findOneById,
   update,
   getAverageScore,
+  deleteById,
 });
