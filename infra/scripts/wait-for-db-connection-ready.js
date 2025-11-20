@@ -1,4 +1,4 @@
-import database from 'infra/database.js';
+import database from '../database.js';
 
 async function waitForDatabase() {
   const maxAttempts = 30;
