@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Head from 'next/head';
+import ErrorMessage from '../components/common/ErrorMessage';
 
 export default function Login() {
   const router = useRouter();
@@ -29,7 +30,6 @@ export default function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to dashboard on success
         router.push('/dashboard');
       } else {
         setError(data.error || 'Login failed. Please try again.');
@@ -54,16 +54,15 @@ export default function Login() {
         <title>Login - Conference Manager</title>
       </Head>
 
-      <div className="container">
+      <div className="page-container">
         <div className="login-box">
-          <h1>Sign In</h1>
+          <div className="logo-section">
+            <span className="logo-icon">📊</span>
+            <h1>Sign In</h1>
+          </div>
           <p className="subtitle">Welcome back! Please sign in to your account.</p>
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          <ErrorMessage message={error} onDismiss={() => setError('')} />
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
@@ -77,6 +76,7 @@ export default function Login() {
                 placeholder="your.email@example.com"
                 required
                 disabled={loading}
+                className="form-input"
               />
             </div>
 
@@ -91,10 +91,11 @@ export default function Login() {
                 placeholder="Enter your password"
                 required
                 disabled={loading}
+                className="form-input"
               />
             </div>
 
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
@@ -111,7 +112,7 @@ export default function Login() {
       </div>
 
       <style jsx>{`
-        .container {
+        .page-container {
           min-height: 100vh;
           display: flex;
           align-items: center;
@@ -123,31 +124,35 @@ export default function Login() {
         .login-box {
           background: white;
           padding: 2.5rem;
-          border-radius: 12px;
-          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+          border-radius: 16px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
           width: 100%;
-          max-width: 400px;
+          max-width: 440px;
+        }
+
+        .logo-section {
+          text-align: center;
+          margin-bottom: 0.5rem;
+        }
+
+        .logo-icon {
+          font-size: 3rem;
+          display: block;
+          margin-bottom: 0.5rem;
         }
 
         h1 {
-          margin-bottom: 0.5rem;
-          color: #333;
-          text-align: center;
+          margin: 0;
+          color: #111827;
+          font-size: 1.875rem;
+          font-weight: 700;
         }
 
         .subtitle {
           text-align: center;
-          color: #666;
+          color: #6b7280;
           margin-bottom: 2rem;
-        }
-
-        .error-message {
-          background: #fee;
-          color: #c33;
-          padding: 0.75rem;
-          border-radius: 6px;
-          margin-bottom: 1rem;
-          font-size: 0.9rem;
+          font-size: 0.95rem;
         }
 
         .form-group {
@@ -157,48 +162,33 @@ export default function Login() {
         label {
           display: block;
           margin-bottom: 0.5rem;
-          color: #333;
+          color: #374151;
           font-weight: 600;
+          font-size: 0.95rem;
         }
 
-        input {
+        .form-input {
           width: 100%;
-          padding: 0.75rem;
-          border: 1px solid #ddd;
-          border-radius: 6px;
+          padding: 0.75rem 1rem;
+          border: 2px solid #e5e7eb;
+          border-radius: 8px;
           font-size: 1rem;
-          transition: border-color 0.3s;
-        }
-
-        input:focus {
+          transition: all 0.3s;
           outline: none;
-          border-color: #667eea;
         }
 
-        input:disabled {
-          background: #f5f5f5;
+        .form-input:focus {
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-input:disabled {
+          background: #f9fafb;
           cursor: not-allowed;
         }
 
-        .btn {
+        .btn-full {
           width: 100%;
-          padding: 0.75rem;
-          border: none;
-          border-radius: 6px;
-          font-size: 1rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.3s;
-        }
-
-        .btn-primary {
-          background: #667eea;
-          color: white;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-          background: #5568d3;
-          transform: translateY(-2px);
         }
 
         .btn:disabled {
@@ -207,13 +197,14 @@ export default function Login() {
         }
 
         .footer-links {
-          margin-top: 1.5rem;
+          margin-top: 2rem;
           text-align: center;
         }
 
         .footer-links p {
-          margin: 0.5rem 0;
-          color: #666;
+          margin: 0.75rem 0;
+          color: #6b7280;
+          font-size: 0.9rem;
         }
 
         .footer-links a {
@@ -224,6 +215,16 @@ export default function Login() {
 
         .footer-links a:hover {
           text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+          .page-container {
+            padding: 1rem;
+          }
+
+          .login-box {
+            padding: 2rem 1.5rem;
+          }
         }
       `}</style>
     </>
