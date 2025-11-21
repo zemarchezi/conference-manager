@@ -2,13 +2,9 @@ import database from 'infra/database.js';
 import crypto from 'crypto';
 
 async function create(userId) {
-  console.log('Session.create called with userId:', userId); // DEBUG
-  
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
-
-  console.log('Inserting session with values:', { userId, token, expiresAt }); // DEBUG
 
   const query = {
     text: `
@@ -19,12 +15,7 @@ async function create(userId) {
     values: [userId, token, expiresAt],
   };
 
-  console.log('Query:', query); // DEBUG
-
   const result = await database.query(query);
-  
-  console.log('Session created:', result.rows[0]); // DEBUG
-  
   return result.rows[0];
 }
 
@@ -35,6 +26,22 @@ async function findByToken(token) {
       FROM sessions s
       JOIN users u ON s.user_id = u.id
       WHERE s.token = $1
+    `,
+    values: [token],
+  };
+
+  const result = await database.query(query);
+  return result.rows[0];
+}
+
+async function findOneValidByToken(token) {
+  const query = {
+    text: `
+      SELECT s.*, u.username, u.email, u.features
+      FROM sessions s
+      JOIN users u ON s.user_id = u.id
+      WHERE s.token = $1 
+        AND s.expires_at > NOW()
     `,
     values: [token],
   };
@@ -72,6 +79,7 @@ async function deleteByUserId(userId) {
 export default {
   create,
   findByToken,
+  findOneValidByToken,
   deleteByToken,
   deleteExpired,
   deleteByUserId,

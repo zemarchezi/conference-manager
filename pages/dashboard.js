@@ -7,7 +7,6 @@ export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [conferences, setConferences] = useState([]);
-  const [abstracts, setAbstracts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,28 +15,22 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch current user
-      const userResponse = await fetch('/api/v1/users');
+      // Check authentication by trying to fetch user info
+      const userResponse = await fetch('/api/v1/users/me');
       if (!userResponse.ok) {
         // Not authenticated, redirect to login
         router.push('/login');
         return;
       }
+      
       const userData = await userResponse.json();
       setUser(userData);
 
-      // Fetch user's conferences (if organizer)
+      // Fetch user's conferences
       const conferencesResponse = await fetch('/api/v1/conferences');
       if (conferencesResponse.ok) {
         const conferencesData = await conferencesResponse.json();
         setConferences(conferencesData.slice(0, 5)); // Show first 5
-      }
-
-      // Fetch user's abstracts
-      const abstractsResponse = await fetch('/api/v1/abstracts');
-      if (abstractsResponse.ok) {
-        const abstractsData = await abstractsResponse.json();
-        setAbstracts(abstractsData.slice(0, 5)); // Show first 5
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -91,7 +84,7 @@ export default function Dashboard() {
         {/* Welcome Section */}
         <section className="welcome">
           <h2>Welcome back, {user.username}! 👋</h2>
-          <p>Here's what's happening with your conferences and submissions.</p>
+          <p>Here's what's happening with your conferences.</p>
         </section>
 
         {/* Stats Cards */}
@@ -101,8 +94,8 @@ export default function Dashboard() {
             <p>My Conferences</p>
           </div>
           <div className="stat-card">
-            <h3>{abstracts.length}</h3>
-            <p>My Abstracts</p>
+            <h3>0</h3>
+            <p>Total Submissions</p>
           </div>
           <div className="stat-card">
             <h3>0</h3>
@@ -114,7 +107,7 @@ export default function Dashboard() {
         <section className="section">
           <div className="section-header">
             <h2>My Conferences</h2>
-            <Link href="/conferences" className="btn-link">View All</Link>
+            <Link href="/conferences/create" className="btn-link">Create New</Link>
           </div>
           {conferences.length > 0 ? (
             <div className="card-grid">
@@ -125,7 +118,7 @@ export default function Dashboard() {
                     📍 {conference.location} • 📅 {new Date(conference.start_date).toLocaleDateString()}
                   </p>
                   <p className="description">{conference.description?.substring(0, 100)}...</p>
-                  <Link href={`/conferences/${conference.slug}`} className="btn-primary">
+                  <Link href={`/c/${conference.slug}`} className="btn-primary">
                     View Conference
                   </Link>
                 </div>
@@ -134,40 +127,7 @@ export default function Dashboard() {
           ) : (
             <div className="empty-state">
               <p>You haven't created any conferences yet.</p>
-              <Link href="/conferences" className="btn-primary">Browse Conferences</Link>
-            </div>
-          )}
-        </section>
-
-        {/* Recent Abstracts */}
-        <section className="section">
-          <div className="section-header">
-            <h2>My Abstract Submissions</h2>
-            <Link href="/abstracts" className="btn-link">View All</Link>
-          </div>
-          {abstracts.length > 0 ? (
-            <div className="card-grid">
-              {abstracts.map((abstract) => (
-                <div key={abstract.id} className="card">
-                  <h3>{abstract.title}</h3>
-                  <p className="meta">
-                    Status: <span className={`status status-${abstract.status}`}>
-                      {abstract.status}
-                    </span>
-                  </p>
-                  <p className="description">{abstract.content?.substring(0, 100)}...</p>
-                  <div className="keywords">
-                    {abstract.keywords?.slice(0, 3).map((keyword, idx) => (
-                      <span key={idx} className="keyword">{keyword}</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <p>You haven't submitted any abstracts yet.</p>
-              <Link href="/conferences" className="btn-primary">Find Conferences</Link>
+              <Link href="/conferences/create" className="btn-primary">Create Your First Conference</Link>
             </div>
           )}
         </section>
@@ -345,43 +305,6 @@ export default function Dashboard() {
           color: #4b5563;
           margin-bottom: 1rem;
           line-height: 1.5;
-        }
-
-        .status {
-          padding: 0.25rem 0.75rem;
-          border-radius: 12px;
-          font-size: 0.85rem;
-          font-weight: 600;
-        }
-
-        .status-pending {
-          background: #fef3c7;
-          color: #92400e;
-        }
-
-        .status-accepted {
-          background: #d1fae5;
-          color: #065f46;
-        }
-
-        .status-rejected {
-          background: #fee2e2;
-          color: #991b1b;
-        }
-
-        .keywords {
-          display: flex;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-          margin-top: 0.75rem;
-        }
-
-        .keyword {
-          background: #e0e7ff;
-          color: #4338ca;
-          padding: 0.25rem 0.75rem;
-          border-radius: 12px;
-          font-size: 0.85rem;
         }
 
         .btn-primary {

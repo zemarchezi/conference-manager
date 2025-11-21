@@ -12,7 +12,7 @@ export default function Home() {
 
   const fetchFeaturedConferences = async () => {
     try {
-      const response = await fetch('/api/v1/conferences?limit=3&status=upcoming');
+      const response = await fetch('/api/v1/conferences?limit=3&status=active');
       if (response.ok) {
         const data = await response.json();
         setConferences(data);
@@ -65,7 +65,7 @@ export default function Home() {
               <p>Comprehensive peer review workflow with scoring and recommendations.</p>
             </div>
             <div className="feature-card">
-              <h3>�� User Management</h3>
+              <h3>👥 User Management</h3>
               <p>Role-based access control for organizers, reviewers, and authors.</p>
             </div>
           </div>
@@ -73,7 +73,7 @@ export default function Home() {
 
         {/* Featured Conferences */}
         <section className="featured-conferences">
-          <h2>Upcoming Conferences</h2>
+          <h2>Featured Conferences</h2>
           {loading ? (
             <p>Loading conferences...</p>
           ) : conferences.length > 0 ? (
@@ -85,14 +85,14 @@ export default function Home() {
                     {new Date(conference.start_date).toLocaleDateString()} - {new Date(conference.end_date).toLocaleDateString()}
                   </p>
                   <p className="conference-location">📍 {conference.location}</p>
-                  <Link href={`/conferences/${conference.slug}`} className="btn btn-small">
+                  <Link href={`/c/${conference.slug}`} className="btn btn-small">
                     View Details
                   </Link>
                 </div>
               ))}
             </div>
           ) : (
-            <p>No upcoming conferences at the moment.</p>
+            <p>No conferences available at the moment.</p>
           )}
           <div style={{ textAlign: 'center', marginTop: '2rem' }}>
             <Link href="/conferences" className="btn btn-secondary">
@@ -105,8 +105,8 @@ export default function Home() {
         <footer className="footer">
           <p>&copy; 2025 Conference Manager. All rights reserved.</p>
           <div className="footer-links">
-            <Link href="/privacy">Privacy Policy</Link>
-            <Link href="/terms">Terms of Service</Link>
+            <Link href="/about">About</Link>
+            <Link href="/contact">Contact</Link>
           </div>
         </footer>
       </div>

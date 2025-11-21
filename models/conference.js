@@ -1,13 +1,17 @@
 import database from 'infra/database.js';
 import slugify from 'slugify';
+import userConferenceRole from 'models/user-conference-role.js';
 
 async function create(conferenceData) {
   const slug = await generateUniqueSlug(conferenceData.title);
 
   const query = {
     text: `
-      INSERT INTO conferences (title, slug, description, start_date, end_date, location, organizer_id, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO conferences (
+        title, slug, description, start_date, end_date, 
+        location, organizer_id, organization_id, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *;
     `,
     values: [
@@ -18,30 +22,56 @@ async function create(conferenceData) {
       conferenceData.end_date,
       conferenceData.location,
       conferenceData.organizer_id,
+      conferenceData.organization_id || null,
       conferenceData.status || 'draft',
     ],
   };
 
   const result = await database.query(query);
-  return result.rows[0];
+  const conference = result.rows[0];
+
+  // Automatically assign organizer role to creator
+  if (conferenceData.organizer_id) {
+    await userConferenceRole.assignRole({
+      user_id: conferenceData.organizer_id,
+      conference_id: conference.id,
+      role: userConferenceRole.ROLES.ORGANIZER,
+    });
+  }
+
+  return conference;
 }
 
 async function findAll(options = {}) {
-  const { limit = 30, offset = 0, status = 'active' } = options;
+  const { limit = 30, offset = 0, status = 'active', organization_id = null } = options;
 
-  const query = {
-    text: `
-      SELECT 
-        c.*,
-        u.username as organizer_username
-      FROM conferences c
-      JOIN users u ON c.organizer_id = u.id
-      WHERE c.status = $1
-      ORDER BY c.start_date DESC
-      LIMIT $2 OFFSET $3;
-    `,
-    values: [status, limit, offset],
-  };
+  const query = organization_id
+    ? {
+        text: `
+          SELECT 
+            c.*,
+            u.username as organizer_username
+          FROM conferences c
+          LEFT JOIN users u ON c.organizer_id = u.id
+          WHERE c.status = $1 AND c.organization_id = $2
+          ORDER BY c.start_date DESC
+          LIMIT $3 OFFSET $4;
+        `,
+        values: [status, organization_id, limit, offset],
+      }
+    : {
+        text: `
+          SELECT 
+            c.*,
+            u.username as organizer_username
+          FROM conferences c
+          LEFT JOIN users u ON c.organizer_id = u.id
+          WHERE c.status = $1
+          ORDER BY c.start_date DESC
+          LIMIT $2 OFFSET $3;
+        `,
+        values: [status, limit, offset],
+      };
 
   const result = await database.query(query);
   return result.rows;
@@ -52,9 +82,12 @@ async function findOneById(conferenceId) {
     text: `
       SELECT 
         c.*,
-        u.username as organizer_username
+        u.username as organizer_username,
+        o.name as organization_name,
+        o.slug as organization_slug
       FROM conferences c
-      JOIN users u ON c.organizer_id = u.id
+      LEFT JOIN users u ON c.organizer_id = u.id
+      LEFT JOIN organizations o ON c.organization_id = o.id
       WHERE c.id = $1;
     `,
     values: [conferenceId],
@@ -69,9 +102,12 @@ async function findOneBySlug(slug) {
     text: `
       SELECT 
         c.*,
-        u.username as organizer_username
+        u.username as organizer_username,
+        o.name as organization_name,
+        o.slug as organization_slug
       FROM conferences c
-      JOIN users u ON c.organizer_id = u.id
+      LEFT JOIN users u ON c.organizer_id = u.id
+      LEFT JOIN organizations o ON c.organization_id = o.id
       WHERE c.slug = $1;
     `,
     values: [slug],

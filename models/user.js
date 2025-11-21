@@ -7,14 +7,34 @@ async function create({ username, email, password }) {
   // Hash the password
   const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-  // Insert user into database
+  // Insert user into database with default features
   const query = {
     text: `
-      INSERT INTO users (username, email, password)
-      VALUES ($1, $2, $3)
+      INSERT INTO users (username, email, password, features)
+      VALUES ($1, $2, $3, $4)
       RETURNING id, username, email, created_at, updated_at, features
     `,
-    values: [username, email, hashedPassword],
+    values: [
+      username,
+      email,
+      hashedPassword,
+      ['read:activation_token'], // Basic default
+    ],
+  };
+
+  const result = await database.query(query);
+  return result.rows[0];
+}
+
+async function addFeatures(userId, features) {
+  const query = {
+    text: `
+      UPDATE users
+      SET features = array_cat(features, $2::text[])
+      WHERE id = $1
+      RETURNING id, username, email, features
+    `,
+    values: [userId, features],
   };
 
   const result = await database.query(query);
@@ -74,7 +94,7 @@ async function comparePassword(plainPassword, hashedPassword) {
 
 async function findAll() {
   const query = {
-    text: 'SELECT id, username, email, created_at, updated_at FROM users ORDER BY created_at DESC',
+    text: 'SELECT id, username, email, created_at, updated_at, features FROM users ORDER BY created_at DESC',
   };
 
   const result = await database.query(query);
@@ -83,6 +103,7 @@ async function findAll() {
 
 export default {
   create,
+  addFeatures,
   findByUsername,
   findByEmail,
   findById,

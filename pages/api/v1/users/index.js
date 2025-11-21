@@ -1,4 +1,4 @@
-import controller from 'models/user.js';
+import user from 'models/user.js';
 import validator from 'models/validator.js';
 
 export default async function handler(request, response) {
@@ -15,33 +15,46 @@ export default async function handler(request, response) {
 
 async function createUser(request, response) {
   try {
-    // Debug: Log what we're receiving
-    console.log('Request body:', request.body);
-    
-    validator.validateUserCreation(request.body);
+    // Validate user data
+    if (!request.body.username || !request.body.email || !request.body.password) {
+      return response.status(400).json({
+        error: 'Username, email, and password are required',
+      });
+    }
 
-    const newUser = await controller.create({
+    // Check if user already exists
+    const existingUser = await user.findByEmail(request.body.email);
+    if (existingUser) {
+      return response.status(400).json({
+        error: 'User with this email already exists',
+      });
+    }
+
+    const existingUsername = await user.findByUsername(request.body.username);
+    if (existingUsername) {
+      return response.status(400).json({
+        error: 'Username already taken',
+      });
+    }
+
+    const newUser = await user.create({
       username: request.body.username,
       email: request.body.email,
       password: request.body.password,
     });
 
+    // Add default features for platform users (can create conferences)
+    await user.addFeatures(newUser.id, [
+      'read:user',
+      'update:user',
+      'create:conference',
+      'create:abstract',
+      'create:review',
+    ]);
+
     delete newUser.password;
     return response.status(201).json(newUser);
   } catch (error) {
-    if (error.name === 'ValidationError') {
-      return response.status(400).json({
-        error: error.message,
-        details: error.details,
-      });
-    }
-
-    if (error.message && error.message.includes('already exists')) {
-      return response.status(400).json({
-        error: 'User with this username or email already exists',
-      });
-    }
-
     console.error('Error creating user:', error);
     return response.status(500).json({ error: 'Internal server error' });
   }
@@ -49,19 +62,8 @@ async function createUser(request, response) {
 
 async function listUsers(request, response) {
   try {
-    const { limit, offset } = request.query;
-
-    const users = await controller.findAll({
-      limit: limit ? parseInt(limit) : 30,
-      offset: offset ? parseInt(offset) : 0,
-    });
-
-    const sanitizedUsers = users.map((user) => {
-      delete user.password;
-      return user;
-    });
-
-    return response.status(200).json(sanitizedUsers);
+    const users = await user.findAll();
+    return response.status(200).json(users);
   } catch (error) {
     console.error('Error listing users:', error);
     return response.status(500).json({ error: 'Internal server error' });
