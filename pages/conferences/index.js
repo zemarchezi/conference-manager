@@ -5,21 +5,26 @@ import Head from 'next/head';
 export default function Conferences() {
   const [conferences, setConferences] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, upcoming, past
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    checkAuth();
     fetchConferences();
-  }, [filter]);
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const response = await fetch('/api/v1/users/me');
+      setIsAuthenticated(response.ok);
+    } catch (error) {
+      setIsAuthenticated(false);
+    }
+  };
 
   const fetchConferences = async () => {
     setLoading(true);
     try {
-      let url = '/api/v1/conferences';
-      if (filter !== 'all') {
-        url += `?status=${filter}`;
-      }
-      
-      const response = await fetch(url);
+      const response = await fetch('/api/v1/conferences?status=active');
       if (response.ok) {
         const data = await response.json();
         setConferences(data);
@@ -44,8 +49,14 @@ export default function Conferences() {
             <h1>Conference Manager</h1>
             <nav>
               <Link href="/">Home</Link>
-              <Link href="/dashboard">Dashboard</Link>
-              <Link href="/login">Login</Link>
+              {isAuthenticated ? (
+                <>
+                  <Link href="/dashboard">Dashboard</Link>
+                  <Link href="/conferences/create" className="btn-create">Create Conference</Link>
+                </>
+              ) : (
+                <Link href="/login">Login</Link>
+              )}
             </nav>
           </div>
         </header>
@@ -54,28 +65,6 @@ export default function Conferences() {
         <div className="page-header">
           <h1>Conferences</h1>
           <p>Discover and participate in academic conferences</p>
-        </div>
-
-        {/* Filters */}
-        <div className="filters">
-          <button 
-            className={filter === 'all' ? 'active' : ''} 
-            onClick={() => setFilter('all')}
-          >
-            All Conferences
-          </button>
-          <button 
-            className={filter === 'upcoming' ? 'active' : ''} 
-            onClick={() => setFilter('upcoming')}
-          >
-            Upcoming
-          </button>
-          <button 
-            className={filter === 'past' ? 'active' : ''} 
-            onClick={() => setFilter('past')}
-          >
-            Past
-          </button>
         </div>
 
         {/* Conferences Grid */}
@@ -102,8 +91,8 @@ export default function Conferences() {
                     {conference.description?.length > 150 ? '...' : ''}
                   </p>
                   <div className="card-footer">
-                    <Link href={`/conferences/${conference.slug}`} className="btn">
-                      View Details →
+                    <Link href={`/c/${conference.slug}`} className="btn">
+                      View Conference →
                     </Link>
                   </div>
                 </div>
@@ -113,6 +102,11 @@ export default function Conferences() {
             <div className="empty">
               <h3>No conferences found</h3>
               <p>Check back later for upcoming conferences.</p>
+              {isAuthenticated && (
+                <Link href="/conferences/create" className="btn-primary">
+                  Create Your Conference
+                </Link>
+              )}
             </div>
           )}
         </div>
@@ -148,6 +142,7 @@ export default function Conferences() {
         nav {
           display: flex;
           gap: 1.5rem;
+          align-items: center;
         }
 
         nav :global(a) {
@@ -159,6 +154,17 @@ export default function Conferences() {
 
         nav :global(a):hover {
           color: #667eea;
+        }
+
+        nav :global(.btn-create) {
+          background: #667eea;
+          color: white;
+          padding: 0.5rem 1rem;
+          border-radius: 6px;
+        }
+
+        nav :global(.btn-create):hover {
+          background: #5568d3;
         }
 
         .page-header {
@@ -176,36 +182,6 @@ export default function Conferences() {
         .page-header p {
           color: #6b7280;
           font-size: 1.1rem;
-        }
-
-        .filters {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 0 2rem 2rem;
-          display: flex;
-          gap: 1rem;
-          justify-content: center;
-        }
-
-        .filters button {
-          padding: 0.75rem 1.5rem;
-          border: 1px solid #e5e7eb;
-          background: white;
-          border-radius: 8px;
-          cursor: pointer;
-          font-weight: 600;
-          transition: all 0.3s;
-        }
-
-        .filters button:hover {
-          border-color: #667eea;
-          color: #667eea;
-        }
-
-        .filters button.active {
-          background: #667eea;
-          color: white;
-          border-color: #667eea;
         }
 
         .container {
@@ -287,6 +263,17 @@ export default function Conferences() {
           transform: translateX(4px);
         }
 
+        .btn-primary {
+          display: inline-block;
+          background: #667eea;
+          color: white;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          text-decoration: none;
+          font-weight: 600;
+          margin-top: 1rem;
+        }
+
         .empty {
           text-align: center;
           padding: 4rem 2rem;
@@ -301,6 +288,7 @@ export default function Conferences() {
 
         .empty p {
           color: #6b7280;
+          margin-bottom: 1.5rem;
         }
 
         @media (max-width: 768px) {
@@ -311,10 +299,6 @@ export default function Conferences() {
 
           .grid {
             grid-template-columns: 1fr;
-          }
-
-          .filters {
-            flex-wrap: wrap;
           }
         }
       `}</style>
