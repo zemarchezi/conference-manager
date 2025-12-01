@@ -1,4 +1,5 @@
-import conference from 'models/conference.js';
+import conference from 'models/conference.js'; // Remove space before .js
+import session from 'models/session.js';
 
 export default async function handler(request, response) {
   if (request.method !== 'GET') {
@@ -14,16 +15,44 @@ export default async function handler(request, response) {
       return response.status(404).json({ error: 'Conference not found' });
     }
 
-    // Only return public conferences or active ones
-    if (conferenceData.status !== 'active' && conferenceData.status !== 'published') {
-      // Check if user has permission to view draft conferences
-      // For now, return 404 for non-published conferences
+    // Allow public access to active/published conferences
+    if (conferenceData.status === 'active' || conferenceData.status === 'published') {
+      return response.status(200).json(conferenceData);
+    }
+
+    // For draft conferences, check if user is the organizer
+    const sessionToken = getSessionToken(request);
+    if (! sessionToken) {
       return response.status(404).json({ error: 'Conference not found' });
     }
 
-    return response.status(200).json(conferenceData);
+    const sessionObj = await session.findOneValidByToken(sessionToken);
+    if (!sessionObj) {
+      return response.status(404).json({ error: 'Conference not found' });
+    }
+
+    // Allow access if user is the organizer
+    if (sessionObj.user_id === conferenceData.organizer_id) {
+      return response.status(200).json(conferenceData);
+    }
+
+    return response.status(404).json({ error: 'Conference not found' });
   } catch (error) {
-    console.error('Error fetching conference:', error);
+    console. error('Error fetching conference:', error);
     return response.status(500).json({ error: 'Internal server error' });
   }
+}
+
+function getSessionToken(request) {
+  const cookies = parseCookies(request. headers.cookie || '');
+  return cookies.session_id;
+}
+
+function parseCookies(cookieHeader) {
+  const cookies = {};
+  cookieHeader.split(';').forEach((cookie) => {
+    const parts = cookie.split('=');
+    cookies[parts[0].trim()] = parts[1];
+  });
+  return cookies;
 }

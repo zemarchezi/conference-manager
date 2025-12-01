@@ -22,6 +22,9 @@ export default async function handler(request, response) {
     const sessionToken = getSessionToken(request);
     const sessionObj = await session.findOneValidByToken(sessionToken);
     const currentUser = await user.findById(sessionObj.user_id);
+    if (!currentUser) {
+      return response.status(401).json({ error: 'User not found' });
+    }
 
     // Validate required fields
     const errors = [];
@@ -30,16 +33,23 @@ export default async function handler(request, response) {
     if (!request.body.start_date) errors.push({ field: 'start_date', message: 'Start date is required' });
     if (!request.body.end_date) errors.push({ field: 'end_date', message: 'End date is required' });
 
+    console.log('Request body:', request.body);
+    console.log('Validation errors:', errors);
+
     if (errors.length > 0) {
-      throw new validator.ValidationError(errors);
+      throw new validator.ValidationError('Validation failed', errors);
     }
 
     // Validate dates
     const startDate = new Date(request.body.start_date);
     const endDate = new Date(request.body.end_date);
-    
+
+    console.log('Start date:', startDate);
+    console.log('End date:', endDate);
+    console.log('End < Start? ', endDate < startDate);
+
     if (endDate < startDate) {
-      throw new validator.ValidationError([
+      throw new validator.ValidationError('End date must be after start date', [
         { field: 'end_date', message: 'End date must be after start date' },
       ]);
     }

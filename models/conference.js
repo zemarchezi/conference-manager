@@ -43,36 +43,59 @@ async function create(conferenceData) {
 }
 
 async function findAll(options = {}) {
-  const { limit = 30, offset = 0, status = 'active', organization_id = null } = options;
+  const { limit = 30, offset = 0, status = null, organization_id = null } = options;
 
-  const query = organization_id
-    ? {
-        text: `
-          SELECT 
-            c.*,
-            u.username as organizer_username
-          FROM conferences c
-          LEFT JOIN users u ON c.organizer_id = u.id
-          WHERE c.status = $1 AND c.organization_id = $2
-          ORDER BY c.start_date DESC
-          LIMIT $3 OFFSET $4;
-        `,
-        values: [status, organization_id, limit, offset],
-      }
-    : {
-        text: `
-          SELECT 
-            c.*,
-            u.username as organizer_username
-          FROM conferences c
-          LEFT JOIN users u ON c.organizer_id = u.id
-          WHERE c.status = $1
-          ORDER BY c.start_date DESC
-          LIMIT $2 OFFSET $3;
-        `,
-        values: [status, limit, offset],
-      };
+  let queryText;
+  let queryValues;
 
+  if (status) {
+    // Filter by status if provided
+    if (organization_id) {
+      queryText = `
+        SELECT c. *, u.username as organizer_username
+        FROM conferences c
+        LEFT JOIN users u ON c.organizer_id = u.id
+        WHERE c.status = $1 AND c.organization_id = $2
+        ORDER BY c.start_date DESC
+        LIMIT $3 OFFSET $4;
+      `;
+      queryValues = [status, organization_id, limit, offset];
+    } else {
+      queryText = `
+        SELECT c.*, u.username as organizer_username
+        FROM conferences c
+        LEFT JOIN users u ON c.organizer_id = u.id
+        WHERE c.status = $1
+        ORDER BY c.start_date DESC
+        LIMIT $2 OFFSET $3;
+      `;
+      queryValues = [status, limit, offset];
+    }
+  } else {
+    // No status filter - show all
+    if (organization_id) {
+      queryText = `
+        SELECT c.*, u.username as organizer_username
+        FROM conferences c
+        LEFT JOIN users u ON c. organizer_id = u.id
+        WHERE c.organization_id = $1
+        ORDER BY c.start_date DESC
+        LIMIT $2 OFFSET $3;
+      `;
+      queryValues = [organization_id, limit, offset];
+    } else {
+      queryText = `
+        SELECT c.*, u.username as organizer_username
+        FROM conferences c
+        LEFT JOIN users u ON c.organizer_id = u.id
+        ORDER BY c. start_date DESC
+        LIMIT $1 OFFSET $2;
+      `;
+      queryValues = [limit, offset];
+    }
+  }
+
+  const query = { text: queryText, values: queryValues };
   const result = await database.query(query);
   return result.rows;
 }

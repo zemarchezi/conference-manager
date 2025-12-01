@@ -24,7 +24,8 @@ export default function Conferences() {
   const fetchConferences = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/conferences?status=active');
+      // Remove status filter to show all conferences user has access to
+      const response = await fetch('/api/v1/conferences');
       if (response.ok) {
         const data = await response.json();
         setConferences(data);
