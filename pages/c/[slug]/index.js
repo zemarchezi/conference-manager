@@ -1,34 +1,50 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import DefaultLayout from 'components/layout/DefaultLayout';
-import ConferenceOverview from 'components/conference/ConferenceOverview';
-import ConferenceSchedule from 'components/conference/ConferenceSchedule';
-import ConferenceSpeakers from 'components/conference/ConferenceSpeakers';
-import ConferenceSubmissions from 'components/conference/ConferenceSubmissions';
-import ConferenceRegistration from 'components/conference/ConferenceRegistration';
+import Link from 'next/link';
 
 export default function ConferenceHome() {
   const router = useRouter();
   const { slug } = router.query;
   const [conference, setConference] = useState(null);
   const [settings, setSettings] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isRegistered, setIsRegistered] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [registration, setRegistration] = useState(null);
+  const [registrationLoading, setRegistrationLoading] = useState(false);
 
   useEffect(() => {
     if (slug) {
       fetchConferenceData();
+      checkAuthentication();
     }
   }, [slug]);
 
+  useEffect(() => {
+    if (conference && isAuthenticated) {
+      checkRegistrationStatus();
+    }
+  }, [conference, isAuthenticated]);
+
+  const checkAuthentication = async () => {
+    try {
+      const response = await fetch('/api/v1/users/me');
+      if (response.ok) {
+        const userData = await response.json();
+        setCurrentUser(userData);
+        setIsAuthenticated(true);
+      }
+    } catch (err) {
+      setIsAuthenticated(false);
+    }
+  };
+
   const fetchConferenceData = async () => {
     try {
-      setLoading(true);
       const conferenceResponse = await fetch(`/api/v1/conferences/by-slug/${slug}`);
-      if (!conferenceResponse.ok) {
+      if (! conferenceResponse.ok) {
         throw new Error('Conference not found');
       }
       const conferenceData = await conferenceResponse.json();
@@ -46,244 +62,459 @@ export default function ConferenceHome() {
     }
   };
 
-  const handleRegistration = async (role) => {
+  const checkRegistrationStatus = async () => {
     try {
-      const response = await fetch(`/api/v1/conferences/${slug}/register`, {
+      const response = await fetch(`/api/v1/conferences/${conference.id}/registrations/my-registration`);
+      if (response. ok) {
+        const registrationData = await response.json();
+        setRegistration(registrationData);
+      }
+    } catch (err) {
+      // User not registered - this is fine
+      setRegistration(null);
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=/c/${slug}`);
+      return;
+    }
+
+    setRegistrationLoading(true);
+    try {
+      const response = await fetch(`/api/v1/conferences/${conference.id}/registrations`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ role }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          registration_type: 'regular',
+        }),
+      });
+
+      if (! response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to register');
+      }
+
+      const newRegistration = await response.json();
+      setRegistration(newRegistration);
+      alert('✅ Registration successful! Check your email for confirmation.');
+    } catch (err) {
+      alert(`Registration failed: ${err.message}`);
+    } finally {
+      setRegistrationLoading(false);
+    }
+  };
+
+  const handleCancelRegistration = async () => {
+    if (! confirm('Are you sure you want to cancel your registration?')) {
+      return;
+    }
+
+    setRegistrationLoading(true);
+    try {
+      const response = await fetch(`/api/v1/conferences/${conference.id}/registrations/my-registration`, {
+        method: 'DELETE',
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error);
+        throw new Error('Failed to cancel registration');
       }
 
-      setIsRegistered(true);
-      alert('Successfully registered for the conference!');
+      setRegistration(null);
+      alert('Registration cancelled successfully');
     } catch (err) {
-      alert(`Registration failed: ${err.message}`);
+      alert(`Failed to cancel: ${err.message}`);
+    } finally {
+      setRegistrationLoading(false);
     }
   };
 
   if (loading) {
-    return (
-      <DefaultLayout>
-        <div className="loading-container">
-          <p>Loading conference...</p>
-        </div>
-      </DefaultLayout>
-    );
+    return <div style={styles.loading}>Loading conference...</div>;
   }
 
   if (error || !conference) {
     return (
-      <DefaultLayout>
-        <div className="error-container">
-          <h1>Conference Not Found</h1>
-          <p>{error || 'The conference you are looking for does not exist.'}</p>
-        </div>
-      </DefaultLayout>
+      <div style={styles. error}>
+        <h1>Conference Not Found</h1>
+        <p>{error || 'The conference you are looking for does not exist.'}</p>
+        <Link href="/">Return Home</Link>
+      </div>
     );
   }
 
-  const primaryColor = settings?.primary_color || '#1976d2';
+  const primaryColor = settings?.primary_color || '#3b82f6';
+  const secondaryColor = settings?.secondary_color || '#1e40af';
+  const isOrganizer = currentUser && conference.organizer_id === currentUser.id;
 
   return (
-    <DefaultLayout>
+    <>
       <Head>
-        <title>{conference.title} | Conference Manager</title>
+        <title>{conference.title} - Conference</title>
         <meta name="description" content={conference.description} />
       </Head>
 
-      <div className="conference-page">
-        <div className="conference-header" style={{ borderColor: primaryColor }}>
-          <h1>{conference.title}</h1>
-          <div className="conference-meta">
-            <span className="location">📍 {conference.location}</span>
-            <span className="dates">
-              📅 {new Date(conference.start_date). toLocaleDateString()} -{' '}
-              {new Date(conference.end_date).toLocaleDateString()}
-            </span>
-            <span className={`status status-${conference.status}`}>
-              {conference.status}
-            </span>
+      <div style={styles.container}>
+        {/* Header */}
+        <header style={{ ... styles.header, backgroundColor: primaryColor }}>
+          <div style={styles.headerContent}>
+            {settings?. logo_url && (
+              <img src={settings.logo_url} alt="Logo" style={styles.logo} />
+            )}
+            <h1 style={styles.title}>{conference.title}</h1>
+            <nav style={styles.nav}>
+              <Link href={`/c/${slug}`} style={styles.navLink}>Home</Link>
+              <Link href={`/c/${slug}/schedule`} style={styles.navLink}>Schedule</Link>
+              <Link href={`/c/${slug}/abstracts`} style={styles.navLink}>Abstracts</Link>
+              <Link href={`/c/${slug}/submit`} style={styles.navLink}>Submit</Link>
+              {isOrganizer && (
+                <Link href={`/c/${slug}/manage`} style={styles.navLink}>Manage</Link>
+              )}
+            </nav>
           </div>
-        </div>
+        </header>
 
-        <nav className="conference-nav">
-          <button
-            className={activeTab === 'overview' ? 'active' : ''}
-            onClick={() => setActiveTab('overview')}
-            style={activeTab === 'overview' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
-          >
-            Overview
-          </button>
-          <button
-            className={activeTab === 'schedule' ?  'active' : ''}
-            onClick={() => setActiveTab('schedule')}
-            style={activeTab === 'schedule' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
-          >
-            Schedule
-          </button>
-          <button
-            className={activeTab === 'speakers' ? 'active' : ''}
-            onClick={() => setActiveTab('speakers')}
-            style={activeTab === 'speakers' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
-          >
-            Speakers
-          </button>
-          <button
-            className={activeTab === 'submissions' ? 'active' : ''}
-            onClick={() => setActiveTab('submissions')}
-            style={activeTab === 'submissions' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
-          >
-            Submissions
-          </button>
-          <button
-            className={activeTab === 'register' ? 'active' : ''}
-            onClick={() => setActiveTab('register')}
-            style={activeTab === 'register' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
-          >
-            Register
-          </button>
-        </nav>
+        {/* Hero Section */}
+        <section style={styles.hero}>
+          <div style={styles.heroContent}>
+            <h2 style={styles.heroTitle}>{conference.title}</h2>
+            <p style={styles. heroSubtitle}>{conference.description}</p>
+            
+            <div style={styles.infoGrid}>
+              <div style={styles.infoCard}>
+                <span style={styles.infoIcon}>📅</span>
+                <div>
+                  <div style={styles.infoLabel}>Date</div>
+                  <div style={styles.infoValue}>
+                    {new Date(conference.start_date).toLocaleDateString()} - {new Date(conference. end_date).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
 
-        <div className="conference-content">
-          {activeTab === 'overview' && <ConferenceOverview conference={conference} settings={settings} />}
-          {activeTab === 'schedule' && <ConferenceSchedule conferenceId={conference.id} conferenceSlug={slug} />}
-          {activeTab === 'speakers' && <ConferenceSpeakers conferenceId={conference.id} conferenceSlug={slug} />}
-          {activeTab === 'submissions' && <ConferenceSubmissions conferenceId={conference.id} conferenceSlug={slug} />}
-          {activeTab === 'register' && (
-            <ConferenceRegistration
-              conferenceId={conference. id}
-              conferenceSlug={slug}
-              onRegister={handleRegistration}
-              isRegistered={isRegistered}
-            />
-          )}
-        </div>
+              <div style={styles.infoCard}>
+                <span style={styles.infoIcon}>📍</span>
+                <div>
+                  <div style={styles.infoLabel}>Location</div>
+                  <div style={styles.infoValue}>{conference.location || 'TBA'}</div>
+                </div>
+              </div>
+
+              {conference.submission_deadline && (
+                <div style={styles.infoCard}>
+                  <span style={styles.infoIcon}>⏰</span>
+                  <div>
+                    <div style={styles.infoLabel}>Submission Deadline</div>
+                    <div style={styles. infoValue}>
+                      {new Date(conference.submission_deadline).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Registration Status & CTA */}
+            <div style={styles.ctaButtons}>
+              {registration ?  (
+                <div style={styles.registrationBadge}>
+                  <div style={styles.registeredInfo}>
+                    <span style={styles.checkmark}>✓</span>
+                    <div>
+                      <div style={styles.registeredText}>You're registered!</div>
+                      <div style={styles.confirmationCode}>
+                        Confirmation: {registration.confirmation_code}
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={handleCancelRegistration}
+                    disabled={registrationLoading}
+                    style={styles.cancelButton}
+                  >
+                    {registrationLoading ? 'Cancelling...' : 'Cancel Registration'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleRegister}
+                  disabled={registrationLoading}
+                  style={{ ...styles.registerButton, backgroundColor: primaryColor }}
+                >
+                  {registrationLoading ? 'Registering...' : '🎟️ Register for Conference'}
+                </button>
+              )}
+
+              {settings?.enable_abstract_submission && (
+                <Link href={`/c/${slug}/submit`} style={{ ...styles.ctaButtonSecondary, borderColor: 'white' }}>
+                  Submit Abstract
+                </Link>
+              )}
+              
+              <Link href={`/c/${slug}/schedule`} style={{ ...styles.ctaButtonSecondary, borderColor: 'white' }}>
+                View Schedule
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* About Section */}
+        <section style={styles.section}>
+          <div style={styles.sectionContent}>
+            <h2 style={styles.sectionTitle}>About the Conference</h2>
+            <p style={styles.sectionText}>{conference.description}</p>
+          </div>
+        </section>
+
+        {/* Important Dates */}
+        <section style={{ ...styles.section, backgroundColor: '#f9fafb' }}>
+          <div style={styles.sectionContent}>
+            <h2 style={styles.sectionTitle}>Important Dates</h2>
+            <div style={styles.datesList}>
+              {conference.submission_deadline && (
+                <div style={styles.dateItem}>
+                  <span style={styles.dateLabel}>Abstract Submission Deadline:</span>
+                  <span style={styles.dateValue}>{new Date(conference.submission_deadline). toLocaleDateString()}</span>
+                </div>
+              )}
+              <div style={styles.dateItem}>
+                <span style={styles. dateLabel}>Conference Start:</span>
+                <span style={styles.dateValue}>{new Date(conference.start_date). toLocaleDateString()}</span>
+              </div>
+              <div style={styles.dateItem}>
+                <span style={styles. dateLabel}>Conference End:</span>
+                <span style={styles. dateValue}>{new Date(conference.end_date).toLocaleDateString()}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer style={styles. footer}>
+          <p>© {new Date().getFullYear()} {conference.title}.  Powered by Conference Manager.</p>
+        </footer>
       </div>
 
       <style jsx>{`
-        .conference-page {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 2rem;
-        }
-
-        . conference-header {
-          margin-bottom: 2rem;
-          padding-bottom: 1rem;
-          border-bottom: 3px solid ${primaryColor};
-        }
-
-        .conference-header h1 {
-          font-size: 2.5rem;
-          margin-bottom: 0.5rem;
-          color: #333;
-        }
-
-        .conference-meta {
-          display: flex;
-          gap: 1. 5rem;
-          flex-wrap: wrap;
-          color: #666;
-          font-size: 0.95rem;
-        }
-
-        . conference-meta span {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-        }
-
-        . status {
-          padding: 0. 25rem 0.75rem;
-          border-radius: 12px;
-          font-weight: 500;
-          text-transform: capitalize;
-        }
-
-        .status-published,
-        .status-active {
-          background-color: #e7f5e7;
-          color: #2e7d32;
-        }
-
-        .status-draft {
-          background-color: #fff3e0;
-          color: #f57c00;
-        }
-
-        .status-archived {
-          background-color: #f5f5f5;
-          color: #757575;
-        }
-
-        . conference-nav {
-          display: flex;
-          gap: 0.5rem;
-          margin-bottom: 2rem;
-          border-bottom: 1px solid #e0e0e0;
-          flex-wrap: wrap;
-        }
-
-        .conference-nav button {
-          padding: 0.75rem 1.5rem;
-          background: none;
-          border: none;
-          border-bottom: 2px solid transparent;
-          cursor: pointer;
-          font-size: 1rem;
-          color: #666;
-          transition: all 0.2s;
-        }
-
-        .conference-nav button:hover {
-          color: #333;
-          background-color: #f5f5f5;
-        }
-
-        .conference-content {
-          background: white;
-          border-radius: 8px;
-          padding: 2rem;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .loading-container,
-        .error-container {
-          text-align: center;
-          padding: 4rem 2rem;
-        }
-
-        .error-container h1 {
-          color: #d32f2f;
-          margin-bottom: 1rem;
-        }
-
-        @media (max-width: 768px) {
-          .conference-page {
-            padding: 1rem;
-          }
-
-          .conference-header h1 {
-            font-size: 2rem;
-          }
-
-          .conference-nav {
-            overflow-x: auto;
-          }
-
-          .conference-nav button {
-            padding: 0.5rem 1rem;
-            font-size: 0. 9rem;
-          }
+        a {
+          text-decoration: none;
         }
       `}</style>
-    </DefaultLayout>
+    </>
   );
 }
+
+// Styles (keeping existing + adding new ones)
+const styles = {
+  loading: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '100vh',
+    fontSize: '18px',
+  },
+  error: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '100vh',
+    textAlign: 'center',
+    padding: '20px',
+  },
+  container: {
+    minHeight: '100vh',
+    backgroundColor: '#ffffff',
+  },
+  header: {
+    padding: '20px 0',
+    color: 'white',
+  },
+  headerContent: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '0 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '20px',
+  },
+  logo: {
+    height: '60px',
+    objectFit: 'contain',
+  },
+  title: {
+    margin: 0,
+    fontSize: '28px',
+    fontWeight: 'bold',
+  },
+  nav: {
+    display: 'flex',
+    gap: '30px',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  navLink: {
+    color: 'white',
+    fontWeight: '500',
+    transition: 'opacity 0.3s',
+  },
+  hero: {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: 'white',
+    padding: '80px 20px',
+  },
+  heroContent: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    textAlign: 'center',
+  },
+  heroTitle: {
+    fontSize: '48px',
+    fontWeight: 'bold',
+    marginBottom: '20px',
+  },
+  heroSubtitle: {
+    fontSize: '20px',
+    marginBottom: '40px',
+    opacity: 0.95,
+  },
+  infoGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '20px',
+    marginBottom: '40px',
+  },
+  infoCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backdropFilter: 'blur(10px)',
+    padding: '20px',
+    borderRadius: '12px',
+    display: 'flex',
+    gap: '15px',
+    alignItems: 'center',
+  },
+  infoIcon: {
+    fontSize: '32px',
+  },
+  infoLabel: {
+    fontSize: '14px',
+    opacity: 0.9,
+    marginBottom: '5px',
+  },
+  infoValue: {
+    fontSize: '16px',
+    fontWeight: '600',
+  },
+  ctaButtons: {
+    display: 'flex',
+    gap: '15px',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  registerButton: {
+    padding: '15px 40px',
+    borderRadius: '8px',
+    fontWeight: '600',
+    fontSize: '18px',
+    color: 'white',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'transform 0.3s, box-shadow 0.3s',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+  },
+  registrationBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: '20px 30px',
+    borderRadius: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+    alignItems: 'center',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+  },
+  registeredInfo: {
+    display: 'flex',
+    gap: '15px',
+    alignItems: 'center',
+  },
+  checkmark: {
+    fontSize: '32px',
+    color: '#10b981',
+  },
+  registeredText: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#10b981',
+  },
+  confirmationCode: {
+    fontSize: '14px',
+    color: '#6b7280',
+    fontFamily: 'monospace',
+  },
+  cancelButton: {
+    padding: '8px 20px',
+    borderRadius: '6px',
+    fontSize: '14px',
+    backgroundColor: '#ef4444',
+    color: 'white',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'background 0.3s',
+  },
+  ctaButtonSecondary: {
+    padding: '15px 40px',
+    borderRadius: '8px',
+    fontWeight: '600',
+    fontSize: '16px',
+    backgroundColor: 'transparent',
+    border: '2px solid white',
+    color: 'white',
+    cursor: 'pointer',
+    transition: 'transform 0.3s',
+  },
+  section: {
+    padding: '60px 20px',
+  },
+  sectionContent: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+  },
+  sectionTitle: {
+    fontSize: '36px',
+    fontWeight: 'bold',
+    marginBottom: '20px',
+    color: '#1f2937',
+  },
+  sectionText: {
+    fontSize: '18px',
+    lineHeight: '1.8',
+    color: '#4b5563',
+  },
+  datesList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '15px',
+  },
+  dateItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '15px 20px',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  },
+  dateLabel: {
+    fontWeight: '600',
+    color: '#374151',
+  },
+  dateValue: {
+    color: '#6b7280',
+  },
+  footer: {
+    backgroundColor: '#1f2937',
+    color: 'white',
+    padding: '30px 20px',
+    textAlign: 'center',
+  },
+};

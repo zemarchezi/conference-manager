@@ -27,7 +27,7 @@ async function createConference(request, response) {
     // Get current user from session
     const sessionToken = getSessionToken(request);
     const sessionObj = await session.findOneValidByToken(sessionToken);
-    const currentUser = await user.findOneById(sessionObj.user_id);
+    const currentUser = await user. findOneById(sessionObj.user_id);
 
     // Validate conference data
     if (!request.body.title || !request.body.description) {
@@ -37,7 +37,7 @@ async function createConference(request, response) {
       ]);
     }
 
-    if (!request.body.start_date || !request.body.end_date) {
+    if (!request.body.start_date || !request.body. end_date) {
       throw new validator.ValidationError([
         { field: 'start_date', message: 'Start date is required' },
         { field: 'end_date', message: 'End date is required' },
@@ -46,8 +46,8 @@ async function createConference(request, response) {
 
     // Create conference
     const conferenceData = {
-      title: request.body.title,
-      description: request.body.description,
+      title: request.body. title,
+      description: request. body.description,
       start_date: request.body.start_date,
       end_date: request.body.end_date,
       location: request.body.location || '',
@@ -59,7 +59,7 @@ async function createConference(request, response) {
     return response.status(201).json(newConference);
   } catch (error) {
     if (error.name === 'ValidationError') {
-      return response.status(400).json({
+      return response. status(400).json({
         error: error.message,
         details: error.errors,
       });
@@ -107,7 +107,7 @@ async function listConferences(request, response) {
 }
 
 function getSessionToken(request) {
-  const cookies = parseCookies(request.headers.cookie || '');
+  const cookies = parseCookies(request. headers.cookie || '');
   return cookies.session_id;
 }
 

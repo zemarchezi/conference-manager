@@ -4,7 +4,7 @@
   "description": "Conference management system for organizing academic conferences - abstract submissions, reviews, and scheduling",
   "main": "index.js",
   "scripts": {
-    "dev": "npm run services:up && npm run next",
+    "dev": "npm run services:up && npm run migrations:up && next dev",
     "next": "next dev",
     "build": "next build",
     "build:local": "npm run services:seed && next build",

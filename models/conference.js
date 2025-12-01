@@ -191,10 +191,21 @@ async function slugExists(slug) {
   return result.rowCount > 0;
 }
 
+async function deleteConference(conferenceId) {
+  const query = {
+    text: 'DELETE FROM conferences WHERE id = $1 RETURNING *;',
+    values: [conferenceId],
+  };
+
+  const result = await database.query(query);
+  return result.rows[0];
+}
+
 export default Object.freeze({
   create,
   findAll,
   findOneById,
   findOneBySlug,
   update,
+  deleteConference,
 });
