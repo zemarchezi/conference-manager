@@ -8,43 +8,38 @@ import ConferenceSpeakers from 'components/conference/ConferenceSpeakers';
 import ConferenceSubmissions from 'components/conference/ConferenceSubmissions';
 import ConferenceRegistration from 'components/conference/ConferenceRegistration';
 
-export default function ConferenceHome() {
+export default function ConferencePage() {
   const router = useRouter();
   const { slug } = router.query;
   const [conference, setConference] = useState(null);
-  const [settings, setSettings] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isRegistered, setIsRegistered] = useState(false);
 
   useEffect(() => {
-    if (slug) {
-      fetchConferenceData();
-    }
+    if (! slug) return;
+
+    const fetchConference = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/v1/conferences/${slug}`);
+
+        if (!response.ok) {
+          throw new Error('Conference not found');
+        }
+
+        const data = await response.json();
+        setConference(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchConference();
   }, [slug]);
-
-  const fetchConferenceData = async () => {
-    try {
-      setLoading(true);
-      const conferenceResponse = await fetch(`/api/v1/conferences/by-slug/${slug}`);
-      if (!conferenceResponse.ok) {
-        throw new Error('Conference not found');
-      }
-      const conferenceData = await conferenceResponse.json();
-      setConference(conferenceData);
-
-      const settingsResponse = await fetch(`/api/v1/conferences/${conferenceData.id}/settings`);
-      if (settingsResponse.ok) {
-        const settingsData = await settingsResponse.json();
-        setSettings(settingsData);
-      }
-    } catch (err) {
-      setError(err. message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleRegistration = async (role) => {
     try {
@@ -53,7 +48,7 @@ export default function ConferenceHome() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ role }),
+        body: JSON. stringify({ role }),
       });
 
       if (!response.ok) {
@@ -78,33 +73,41 @@ export default function ConferenceHome() {
     );
   }
 
-  if (error || !conference) {
+  if (error) {
     return (
       <DefaultLayout>
         <div className="error-container">
-          <h1>Conference Not Found</h1>
-          <p>{error || 'The conference you are looking for does not exist.'}</p>
+          <h1>Error</h1>
+          <p>{error}</p>
         </div>
       </DefaultLayout>
     );
   }
 
-  const primaryColor = settings?.primary_color || '#1976d2';
+  if (!conference) {
+    return (
+      <DefaultLayout>
+        <div className="error-container">
+          <h1>Conference not found</h1>
+        </div>
+      </DefaultLayout>
+    );
+  }
 
   return (
     <DefaultLayout>
       <Head>
-        <title>{conference.title} | Conference Manager</title>
+        <title>{conference.name} | Conference Manager</title>
         <meta name="description" content={conference.description} />
       </Head>
 
       <div className="conference-page">
-        <div className="conference-header" style={{ borderColor: primaryColor }}>
-          <h1>{conference.title}</h1>
+        <div className="conference-header">
+          <h1>{conference.name}</h1>
           <div className="conference-meta">
-            <span className="location">📍 {conference.location}</span>
+            <span className="location">{conference.location}</span>
             <span className="dates">
-              📅 {new Date(conference.start_date). toLocaleDateString()} -{' '}
+              {new Date(conference.start_date). toLocaleDateString()} -{' '}
               {new Date(conference.end_date).toLocaleDateString()}
             </span>
             <span className={`status status-${conference.status}`}>
@@ -117,48 +120,42 @@ export default function ConferenceHome() {
           <button
             className={activeTab === 'overview' ? 'active' : ''}
             onClick={() => setActiveTab('overview')}
-            style={activeTab === 'overview' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
           >
             Overview
           </button>
           <button
-            className={activeTab === 'schedule' ?  'active' : ''}
+            className={activeTab === 'schedule' ? 'active' : ''}
             onClick={() => setActiveTab('schedule')}
-            style={activeTab === 'schedule' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
           >
             Schedule
           </button>
           <button
             className={activeTab === 'speakers' ? 'active' : ''}
             onClick={() => setActiveTab('speakers')}
-            style={activeTab === 'speakers' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
           >
             Speakers
           </button>
           <button
             className={activeTab === 'submissions' ? 'active' : ''}
             onClick={() => setActiveTab('submissions')}
-            style={activeTab === 'submissions' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
           >
             Submissions
           </button>
           <button
-            className={activeTab === 'register' ? 'active' : ''}
+            className={activeTab === 'register' ?  'active' : ''}
             onClick={() => setActiveTab('register')}
-            style={activeTab === 'register' ? { borderBottomColor: primaryColor, color: primaryColor } : {}}
           >
             Register
           </button>
         </nav>
 
         <div className="conference-content">
-          {activeTab === 'overview' && <ConferenceOverview conference={conference} settings={settings} />}
-          {activeTab === 'schedule' && <ConferenceSchedule conferenceId={conference.id} conferenceSlug={slug} />}
-          {activeTab === 'speakers' && <ConferenceSpeakers conferenceId={conference.id} conferenceSlug={slug} />}
-          {activeTab === 'submissions' && <ConferenceSubmissions conferenceId={conference.id} conferenceSlug={slug} />}
+          {activeTab === 'overview' && <ConferenceOverview conference={conference} />}
+          {activeTab === 'schedule' && <ConferenceSchedule conferenceSlug={slug} />}
+          {activeTab === 'speakers' && <ConferenceSpeakers conferenceSlug={slug} />}
+          {activeTab === 'submissions' && <ConferenceSubmissions conferenceSlug={slug} />}
           {activeTab === 'register' && (
             <ConferenceRegistration
-              conferenceId={conference. id}
               conferenceSlug={slug}
               onRegister={handleRegistration}
               isRegistered={isRegistered}
@@ -177,7 +174,7 @@ export default function ConferenceHome() {
         . conference-header {
           margin-bottom: 2rem;
           padding-bottom: 1rem;
-          border-bottom: 3px solid ${primaryColor};
+          border-bottom: 2px solid #e0e0e0;
         }
 
         .conference-header h1 {
@@ -197,7 +194,6 @@ export default function ConferenceHome() {
         . conference-meta span {
           display: flex;
           align-items: center;
-          gap: 0.25rem;
         }
 
         . status {
@@ -207,8 +203,7 @@ export default function ConferenceHome() {
           text-transform: capitalize;
         }
 
-        .status-published,
-        .status-active {
+        .status-published {
           background-color: #e7f5e7;
           color: #2e7d32;
         }
@@ -228,7 +223,6 @@ export default function ConferenceHome() {
           gap: 0.5rem;
           margin-bottom: 2rem;
           border-bottom: 1px solid #e0e0e0;
-          flex-wrap: wrap;
         }
 
         .conference-nav button {
@@ -247,7 +241,12 @@ export default function ConferenceHome() {
           background-color: #f5f5f5;
         }
 
-        .conference-content {
+        .conference-nav button.active {
+          color: #1976d2;
+          border-bottom-color: #1976d2;
+        }
+
+        . conference-content {
           background: white;
           border-radius: 8px;
           padding: 2rem;
@@ -263,25 +262,6 @@ export default function ConferenceHome() {
         .error-container h1 {
           color: #d32f2f;
           margin-bottom: 1rem;
-        }
-
-        @media (max-width: 768px) {
-          .conference-page {
-            padding: 1rem;
-          }
-
-          .conference-header h1 {
-            font-size: 2rem;
-          }
-
-          .conference-nav {
-            overflow-x: auto;
-          }
-
-          .conference-nav button {
-            padding: 0.5rem 1rem;
-            font-size: 0. 9rem;
-          }
         }
       `}</style>
     </DefaultLayout>
