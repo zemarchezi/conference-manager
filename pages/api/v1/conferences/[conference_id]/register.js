@@ -13,14 +13,14 @@ export default async function handler(request, response) {
   try {
     // Get session token
     const sessionToken = getSessionToken(request);
-    if (!sessionToken) {
+    if (! sessionToken) {
       return response.status(403).json({ error: 'User must be authenticated to register for a conference' });
     }
 
     // Get current user from session
     const sessionObj = await session.findOneValidByToken(sessionToken);
     if (!sessionObj) {
-      return response.status(403).json({ error: 'Invalid or expired session' });
+      return response. status(403).json({ error: 'Invalid or expired session' });
     }
 
     const currentUser = await user.findOneById(sessionObj.user_id);
@@ -29,7 +29,7 @@ export default async function handler(request, response) {
     const validRoles = ['attendee', 'speaker', 'reviewer'];
     const role = request.body.role || 'attendee';
 
-    if (!validRoles.includes(role)) {
+    if (!validRoles. includes(role)) {
       return response.status(400).json({ error: 'Invalid role.  Must be one of: attendee, speaker, reviewer' });
     }
 
@@ -46,7 +46,7 @@ export default async function handler(request, response) {
     }
 
     // Check if user is already registered
-    const existingRole = await userConferenceRole. findByUserAndConference(
+    const existingRole = await userConferenceRole.findByUserAndConference(
       currentUser.id,
       conferenceData.id
     );
@@ -56,7 +56,7 @@ export default async function handler(request, response) {
     }
 
     // Register user for conference
-    const registration = await userConferenceRole. create({
+    const registration = await userConferenceRole.create({
       user_id: currentUser.id,
       conference_id: conferenceData.id,
       role: role,
@@ -73,15 +73,15 @@ export default async function handler(request, response) {
 }
 
 function getSessionToken(request) {
-  const cookies = parseCookies(request. headers.cookie || '');
-  return cookies.session_id;
+  const cookies = parseCookies(request.headers.cookie || '');
+  return cookies. session_id;
 }
 
 function parseCookies(cookieHeader) {
   const cookies = {};
   cookieHeader.split(';').forEach((cookie) => {
     const parts = cookie.split('=');
-    cookies[parts[0]. trim()] = parts[1];
+    cookies[parts[0].trim()] = parts[1];
   });
   return cookies;
 }
