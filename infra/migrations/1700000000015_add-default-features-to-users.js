@@ -1,5 +1,5 @@
 exports.up = (pgm) => {
-  pgm.sql(`
+    pgm.sql(`
     UPDATE users 
     SET features = array_cat(features, ARRAY[
       'read:user',
@@ -13,8 +13,8 @@ exports.up = (pgm) => {
 };
 
 exports.down = (pgm) => {
-  // Optionally remove these features
-  pgm.sql(`
+    // Optionally remove these features
+    pgm.sql(`
     UPDATE users 
     SET features = ARRAY['read:activation_token']::text[];
   `);

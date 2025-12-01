@@ -1,7 +1,13 @@
-export async function sendConferenceCreatedEmail({ email, username, conference }) {
-  console.log(`Would send conference creation email to ${email} for conference: ${conference.title}`);
-  // TODO: Implement email sending
-  return Promise.resolve();
+export async function sendConferenceCreatedEmail({
+    email,
+    username,
+    conference,
+}) {
+    console.log(
+        `Would send conference creation email to ${email} for conference: ${conference.title}`,
+    );
+    // TODO: Implement email sending
+    return Promise.resolve();
 }
 // import { useState } from 'react';
 // import { useRouter } from 'next/router';
@@ -11,7 +17,7 @@ export async function sendConferenceCreatedEmail({ email, username, conference }
 //   const [step, setStep] = useState(1);
 //   const [loading, setLoading] = useState(false);
 //   const [error, setError] = useState(null);
-  
+
 //   const [formData, setFormData] = useState({
 //     title: '',
 //     description: '',
@@ -76,7 +82,7 @@ export async function sendConferenceCreatedEmail({ email, username, conference }
 //     <div style={styles.container}>
 //       <div style={styles.wizard}>
 //         <h1 style={styles.mainTitle}>Create Your Conference</h1>
-        
+
 //         {/* Progress Steps */}
 //         <div style={styles.stepIndicator}>
 //           <div style={{ ...styles.stepItem, ...(step >= 1 ? styles.stepActive : {}) }}>
@@ -106,7 +112,7 @@ export async function sendConferenceCreatedEmail({ email, username, conference }
 //           {step === 1 && (
 //             <div style={styles.stepContent}>
 //               <h2 style={styles.stepTitle}>Basic Information</h2>
-              
+
 //               <div style={styles.formGroup}>
 //                 <label style={styles.label}>Conference Title *</label>
 //                 <input
@@ -197,7 +203,7 @@ export async function sendConferenceCreatedEmail({ email, username, conference }
 
 //               <div style={styles.formGroup}>
 //                 <h3 style={styles.sectionTitle}>Branding</h3>
-                
+
 //                 <div style={styles.formRow}>
 //                   <div style={styles.formGroup}>
 //                     <label style={styles.label}>Primary Color</label>
@@ -223,7 +229,7 @@ export async function sendConferenceCreatedEmail({ email, username, conference }
 
 //               <div style={styles.formGroup}>
 //                 <h3 style={styles.sectionTitle}>Features</h3>
-                
+
 //                 <label style={styles.checkbox}>
 //                   <input
 //                     type="checkbox"
