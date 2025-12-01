@@ -353,7 +353,7 @@ export default function ConferenceHome() {
 
                             {settings?.enable_abstract_submission && (
                                 <Link
-                                    href={`/c/${slug}/submit`}
+                                    href={`/c/${slug}/abstracts/submit`}
                                     style={{
                                         ...styles.ctaButtonSecondary,
                                         borderColor: 'white',

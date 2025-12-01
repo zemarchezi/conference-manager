@@ -1,6 +1,7 @@
 import registration from 'models/registration.js';
 import conference from 'models/conference.js';
 import authorization from 'models/authorization.js';
+import userConferenceRole from 'models/user-conference-role.js';
 
 export default async function handler(request, response) {
     const { conference_id } = request.query;
@@ -62,6 +63,13 @@ async function createRegistration(request, response, conferenceId) {
                 },
             );
 
+            // Also assign attendee role if not already assigned
+            await userConferenceRole.assignRole({
+                user_id: currentUser.id,
+                conference_id: conferenceId,
+                role: 'attendee',
+            });
+
             return response.status(200).json(updatedRegistration);
         }
 
@@ -74,6 +82,14 @@ async function createRegistration(request, response, conferenceId) {
         };
 
         const newRegistration = await registration.create(registrationData);
+
+        // Automatically assign attendee role
+        await userConferenceRole.assignRole({
+            user_id: currentUser.id,
+            conference_id: conferenceId,
+            role: 'attendee',
+        });
+
         return response.status(201).json(newRegistration);
     } catch (error) {
         console.error('Error creating registration:', error);
@@ -99,24 +115,26 @@ async function listRegistrations(request, response, conferenceId) {
             return response.status(404).json({ error: 'Conference not found' });
         }
 
-        // Only organizers can view all registrations
-        if (conferenceData.organizer_id !== currentUser.id) {
+        // Check if user is organizer
+        const context = await authorization.getUserConferenceContext(
+            request,
+            conferenceId,
+        );
+
+        if (!context || !context.permissions.includes('read:conference')) {
             return response.status(403).json({
-                error: 'Only organizers can view all registrations',
+                error: 'You do not have permission to view registrations',
             });
         }
 
         const registrations =
             await registration.findByConferenceId(conferenceId);
-        const totalCount =
-            await registration.getRegistrationCount(conferenceId);
-
-        return response.status(200).json({
-            registrations,
-            total: totalCount,
-        });
+        return response.status(200).json(registrations);
     } catch (error) {
         console.error('Error listing registrations:', error);
-        return response.status(500).json({ error: 'Internal server error' });
+        return response.status(500).json({
+            error: 'Internal server error',
+            details: error.message,
+        });
     }
 }
