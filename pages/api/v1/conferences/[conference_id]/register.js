@@ -1,4 +1,4 @@
-import userConferenceRole from 'models/user-conference-role. js';
+import userConferenceRole from 'models/user-conference-role.js';
 import conference from 'models/conference.js';
 import session from 'models/session.js';
 import user from 'models/user.js';
