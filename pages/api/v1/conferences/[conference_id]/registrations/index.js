@@ -3,7 +3,7 @@ import conference from 'models/conference.js';
 import authorization from 'models/authorization.js';
 
 export default async function handler(request, response) {
-  const { conference_id } = request.query;
+  const { conference_id } = request. query;
 
   if (request.method === 'GET') {
     return await listRegistrations(request, response, conference_id);
@@ -18,61 +18,68 @@ export default async function handler(request, response) {
 
 async function createRegistration(request, response, conferenceId) {
   try {
-    // Get current user
     const currentUser = await authorization.getUserFromRequest(request);
+    
     if (!currentUser) {
-      return response.status(401).json({ error: 'User must be authenticated to register' });
+      return response.status(401).json({ 
+        error: 'User must be authenticated to register' 
+      });
     }
 
-    // Check if conference exists
     const conferenceData = await conference.findOneById(conferenceId);
     if (!conferenceData) {
       return response.status(404).json({ error: 'Conference not found' });
     }
 
-    // Check if user is already registered
+    // Check if user already has a registration
     const existingRegistration = await registration.findByUserAndConference(
       currentUser.id,
       conferenceId
     );
 
-    if (existingRegistration) {
-      return response.status(400).json({ 
+    // If registration exists and is NOT cancelled, reject
+    if (existingRegistration && existingRegistration.status !== 'cancelled') {
+      return response.status(400).json({
         error: 'You are already registered for this conference',
         registration: existingRegistration,
       });
     }
 
-    // Create registration
+    // If registration is cancelled, update it instead of creating new one
+    if (existingRegistration && existingRegistration.status === 'cancelled') {
+      const updatedRegistration = await registration. update(existingRegistration.id, {
+        status: 'confirmed',
+        registration_type: request.body.registration_type || 'regular',
+      });
+
+      return response.status(200).json(updatedRegistration);
+    }
+
+    // Create new registration if none exists
     const registrationData = {
       conference_id: conferenceId,
-      user_id: currentUser.id,
+      user_id: currentUser. id,
       registration_type: request.body.registration_type || 'regular',
-      registration_data: request.body.registration_data || {},
       status: 'confirmed',
     };
 
     const newRegistration = await registration.create(registrationData);
-
-    // TODO: Send confirmation email
-    console.log(`Would send registration confirmation email to ${currentUser.email}`);
-    console.log(`Confirmation code: ${newRegistration. confirmation_code}`);
-
     return response.status(201).json(newRegistration);
+
   } catch (error) {
-    console. error('Error creating registration:', error);
-    return response.status(500).json({ error: 'Internal server error' });
+    console.error('Error creating registration:', error);
+    return response. status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
   }
 }
 
 async function listRegistrations(request, response, conferenceId) {
   try {
-    const { status, limit, offset } = request.query;
-
-    // Check if user has permission to view registrations (organizer or admin)
     const currentUser = await authorization.getUserFromRequest(request);
     
-    if (! currentUser) {
+    if (!currentUser) {
       return response.status(401).json({ error: 'Authentication required' });
     }
 
@@ -81,24 +88,21 @@ async function listRegistrations(request, response, conferenceId) {
       return response.status(404). json({ error: 'Conference not found' });
     }
 
-    // Only organizer can view all registrations
+    // Only organizers can view all registrations
     if (conferenceData.organizer_id !== currentUser.id) {
-      return response.status(403).json({ error: 'Only organizers can view all registrations' });
+      return response.status(403).json({ 
+        error: 'Only organizers can view all registrations' 
+      });
     }
 
-    const options = {
-      status,
-      limit: limit ? parseInt(limit) : 100,
-      offset: offset ? parseInt(offset) : 0,
-    };
+    const registrations = await registration. findByConferenceId(conferenceId);
+    const totalCount = await registration.getRegistrationCount(conferenceId);
 
-    const registrations = await registration.findByConferenceId(conferenceId, options);
-    const count = await registration.getRegistrationCount(conferenceId, status);
-
-    return response.status(200).json({
+    return response.status(200). json({
       registrations,
-      total: count,
+      total: totalCount,
     });
+
   } catch (error) {
     console.error('Error listing registrations:', error);
     return response.status(500).json({ error: 'Internal server error' });

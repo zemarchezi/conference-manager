@@ -13,59 +13,65 @@ export default async function handler(request, response) {
     return await cancelMyRegistration(request, response, conference_id);
   }
 
-  return response.status(405). json({ error: 'Method not allowed' });
+  return response.status(405).json({ error: 'Method not allowed' });
 }
 
 async function getMyRegistration(request, response, conferenceId) {
   try {
     const currentUser = await authorization.getUserFromRequest(request);
+    
     if (!currentUser) {
       return response.status(401).json({ error: 'Authentication required' });
     }
 
-    const conferenceData = await conference.findOneById(conferenceId);
+    const conferenceData = await conference. findOneById(conferenceId);
     if (!conferenceData) {
-      return response.status(404). json({ error: 'Conference not found' });
+      return response.status(404).json({ error: 'Conference not found' });
     }
 
-    const myRegistration = await registration.findByUserAndConference(
-      currentUser.id,
+    const userRegistration = await registration.findByUserAndConference(
+      currentUser. id,
       conferenceId
     );
 
-    if (! myRegistration) {
-      return response.status(404).json({ error: 'Registration not found' });
+    if (!userRegistration) {
+      return response. status(404).json({ error: 'No registration found' });
     }
 
-    return response.status(200). json(myRegistration);
+    return response.status(200).json(userRegistration);
+
   } catch (error) {
     console.error('Error fetching registration:', error);
-    return response. status(500).json({ error: 'Internal server error' });
+    return response.status(500).json({ error: 'Internal server error' });
   }
 }
 
 async function cancelMyRegistration(request, response, conferenceId) {
   try {
     const currentUser = await authorization.getUserFromRequest(request);
-    if (!currentUser) {
+    
+    if (! currentUser) {
       return response.status(401).json({ error: 'Authentication required' });
     }
 
-    const myRegistration = await registration.findByUserAndConference(
+    const conferenceData = await conference.findOneById(conferenceId);
+    if (! conferenceData) {
+      return response.status(404).json({ error: 'Conference not found' });
+    }
+
+    const userRegistration = await registration.findByUserAndConference(
       currentUser.id,
       conferenceId
     );
 
-    if (! myRegistration) {
-      return response.status(404).json({ error: 'Registration not found' });
+    if (! userRegistration) {
+      return response.status(404).json({ error: 'No registration found' });
     }
 
-    const cancelled = await registration.cancelRegistration(myRegistration.id);
+    const cancelledRegistration = await registration.cancelRegistration(userRegistration.id);
 
-    return response.status(200). json({ 
-      message: 'Registration cancelled successfully',
-      registration: cancelled,
-    });
+    return response.status(200). json(cancelledRegistration);
+
   } catch (error) {
     console.error('Error cancelling registration:', error);
     return response.status(500).json({ error: 'Internal server error' });

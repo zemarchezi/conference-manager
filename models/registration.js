@@ -127,6 +127,16 @@ async function findByConfirmationCode(confirmationCode) {
   return result. rows[0];
 }
 
+async function findById(registrationId) {
+  const query = {
+    text: 'SELECT * FROM registrations WHERE id = $1',
+    values: [registrationId],
+  };
+
+  const result = await database.query(query);
+  return result.rows[0];
+}
+
 async function update(registrationId, updateData) {
   const query = {
     text: `
@@ -205,11 +215,11 @@ const REGISTRATION_STATUS = {
 
 export default Object.freeze({
   create,
+  findById,
   findByConferenceId,
-  findByUserId,
   findByUserAndConference,
   findByConfirmationCode,
-  update,
+  update, 
   cancelRegistration,
   getRegistrationCount,
   REGISTRATION_TYPES,
