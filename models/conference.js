@@ -3,10 +3,10 @@ import slugify from 'slugify';
 import userConferenceRole from 'models/user-conference-role.js';
 
 async function create(conferenceData) {
-  const slug = await generateUniqueSlug(conferenceData.title);
+    const slug = await generateUniqueSlug(conferenceData.title);
 
-  const query = {
-    text: `
+    const query = {
+        text: `
       INSERT INTO conferences (
         title, slug, description, start_date, end_date, 
         location, organizer_id, organization_id, status
@@ -14,72 +14,100 @@ async function create(conferenceData) {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *;
     `,
-    values: [
-      conferenceData.title,
-      slug,
-      conferenceData.description,
-      conferenceData.start_date,
-      conferenceData.end_date,
-      conferenceData.location,
-      conferenceData.organizer_id,
-      conferenceData.organization_id || null,
-      conferenceData.status || 'draft',
-    ],
-  };
+        values: [
+            conferenceData.title,
+            slug,
+            conferenceData.description,
+            conferenceData.start_date,
+            conferenceData.end_date,
+            conferenceData.location,
+            conferenceData.organizer_id,
+            conferenceData.organization_id || null,
+            conferenceData.status || 'draft',
+        ],
+    };
 
-  const result = await database.query(query);
-  const conference = result.rows[0];
+    const result = await database.query(query);
+    const conference = result.rows[0];
 
-  // Automatically assign organizer role to creator
-  if (conferenceData.organizer_id) {
-    await userConferenceRole.assignRole({
-      user_id: conferenceData.organizer_id,
-      conference_id: conference.id,
-      role: userConferenceRole.ROLES.ORGANIZER,
-    });
-  }
+    // Automatically assign organizer role to creator
+    if (conferenceData.organizer_id) {
+        await userConferenceRole.assignRole({
+            user_id: conferenceData.organizer_id,
+            conference_id: conference.id,
+            role: userConferenceRole.ROLES.ORGANIZER,
+        });
+    }
 
-  return conference;
+    return conference;
 }
 
 async function findAll(options = {}) {
-  const { limit = 30, offset = 0, status = 'active', organization_id = null } = options;
+    const {
+        limit = 30,
+        offset = 0,
+        status = null,
+        organization_id = null,
+    } = options;
 
-  const query = organization_id
-    ? {
-        text: `
-          SELECT 
-            c.*,
-            u.username as organizer_username
-          FROM conferences c
-          LEFT JOIN users u ON c.organizer_id = u.id
-          WHERE c.status = $1 AND c.organization_id = $2
-          ORDER BY c.start_date DESC
-          LIMIT $3 OFFSET $4;
-        `,
-        values: [status, organization_id, limit, offset],
-      }
-    : {
-        text: `
-          SELECT 
-            c.*,
-            u.username as organizer_username
-          FROM conferences c
-          LEFT JOIN users u ON c.organizer_id = u.id
-          WHERE c.status = $1
-          ORDER BY c.start_date DESC
-          LIMIT $2 OFFSET $3;
-        `,
-        values: [status, limit, offset],
-      };
+    let queryText;
+    let queryValues;
 
-  const result = await database.query(query);
-  return result.rows;
+    if (status) {
+        // Filter by status if provided
+        if (organization_id) {
+            queryText = `
+        SELECT c. *, u.username as organizer_username
+        FROM conferences c
+        LEFT JOIN users u ON c.organizer_id = u.id
+        WHERE c.status = $1 AND c.organization_id = $2
+        ORDER BY c.start_date DESC
+        LIMIT $3 OFFSET $4;
+      `;
+            queryValues = [status, organization_id, limit, offset];
+        } else {
+            queryText = `
+        SELECT c.*, u.username as organizer_username
+        FROM conferences c
+        LEFT JOIN users u ON c.organizer_id = u.id
+        WHERE c.status = $1
+        ORDER BY c.start_date DESC
+        LIMIT $2 OFFSET $3;
+      `;
+            queryValues = [status, limit, offset];
+        }
+    } else {
+        // No status filter - show all
+        if (organization_id) {
+            queryText = `
+        SELECT c.*, u.username as organizer_username
+        FROM conferences c
+        LEFT JOIN users u ON c. organizer_id = u.id
+        WHERE c.organization_id = $1
+        ORDER BY c.start_date DESC
+        LIMIT $2 OFFSET $3;
+      `;
+            queryValues = [organization_id, limit, offset];
+        } else {
+            queryText = `
+        SELECT c.*, u.username as organizer_username
+        FROM conferences c
+        LEFT JOIN users u ON c.organizer_id = u.id
+        ORDER BY c. start_date DESC
+        LIMIT $1 OFFSET $2;
+      `;
+            queryValues = [limit, offset];
+        }
+    }
+
+    const query = { text: queryText, values: queryValues };
+    const result = await database.query(query);
+    return result.rows;
 }
 
 async function findOneById(conferenceId) {
-  const query = {
-    text: `
+    const query = {
+        text: `
       SELECT 
         c.*,
         u.username as organizer_username,
@@ -90,16 +118,16 @@ async function findOneById(conferenceId) {
       LEFT JOIN organizations o ON c.organization_id = o.id
       WHERE c.id = $1;
     `,
-    values: [conferenceId],
-  };
+        values: [conferenceId],
+    };
 
-  const result = await database.query(query);
-  return result.rows[0];
+    const result = await database.query(query);
+    return result.rows[0];
 }
 
 async function findOneBySlug(slug) {
-  const query = {
-    text: `
+    const query = {
+        text: `
       SELECT 
         c.*,
         u.username as organizer_username,
@@ -110,16 +138,16 @@ async function findOneBySlug(slug) {
       LEFT JOIN organizations o ON c.organization_id = o.id
       WHERE c.slug = $1;
     `,
-    values: [slug],
-  };
+        values: [slug],
+    };
 
-  const result = await database.query(query);
-  return result.rows[0];
+    const result = await database.query(query);
+    return result.rows[0];
 }
 
 async function update(conferenceId, updateData) {
-  const query = {
-    text: `
+    const query = {
+        text: `
       UPDATE conferences SET
         title = COALESCE($2, title),
         description = COALESCE($3, description),
@@ -131,47 +159,58 @@ async function update(conferenceId, updateData) {
       WHERE id = $1
       RETURNING *;
     `,
-    values: [
-      conferenceId,
-      updateData.title,
-      updateData.description,
-      updateData.start_date,
-      updateData.end_date,
-      updateData.location,
-      updateData.status,
-    ],
-  };
+        values: [
+            conferenceId,
+            updateData.title,
+            updateData.description,
+            updateData.start_date,
+            updateData.end_date,
+            updateData.location,
+            updateData.status,
+        ],
+    };
 
-  const result = await database.query(query);
-  return result.rows[0];
+    const result = await database.query(query);
+    return result.rows[0];
 }
 
 async function generateUniqueSlug(title) {
-  let slug = slugify(title, { lower: true, strict: true });
-  let counter = 1;
+    let slug = slugify(title, { lower: true, strict: true });
+    let counter = 1;
 
-  while (await slugExists(slug)) {
-    slug = `${slugify(title, { lower: true, strict: true })}-${counter}`;
-    counter++;
-  }
+    while (await slugExists(slug)) {
+        slug = `${slugify(title, { lower: true, strict: true })}-${counter}`;
+        counter++;
+    }
 
-  return slug;
+    return slug;
 }
 
 async function slugExists(slug) {
-  const query = {
-    text: 'SELECT id FROM conferences WHERE slug = $1',
-    values: [slug],
-  };
+    const query = {
+        text: 'SELECT id FROM conferences WHERE slug = $1',
+        values: [slug],
+    };
 
-  const result = await database.query(query);
-  return result.rowCount > 0;
+    const result = await database.query(query);
+    return result.rowCount > 0;
+}
+
+async function deleteConference(conferenceId) {
+    const query = {
+        text: 'DELETE FROM conferences WHERE id = $1 RETURNING *;',
+        values: [conferenceId],
+    };
+
+    const result = await database.query(query);
+    return result.rows[0];
 }
 
 export default Object.freeze({
-  create,
-  findAll,
-  findOneById,
-  findOneBySlug,
-  update,
+    create,
+    findAll,
+    findOneById,
+    findOneBySlug,
+    update,
+    deleteConference,
 });
