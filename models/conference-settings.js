@@ -1,45 +1,67 @@
 import database from 'infra/database.js';
 
-const DEFAULT_SETTINGS = {
-    primary_color: '#3b82f6',
-    secondary_color: '#1e40af',
-    abstract_max_length: 5000,
-    keywords_required: false,
-    custom_fields: [],
-    enable_reviews: true,
-    enable_public_schedule: true,
-    enable_abstract_submission: true,
-    custom_email_templates: {},
-};
-
-async function create(conference_id, settings = {}) {
-    const mergedSettings = { ...DEFAULT_SETTINGS, ...settings };
+async function create(conferenceId, settingsData = {}) {
+    const defaultSettings = {
+        logo_url: null,
+        banner_url: null,
+        primary_color: '#667eea',
+        secondary_color: '#764ba2',
+        conference_format: 'In-Person',
+        about_text: null,
+        important_dates: null,
+        topics: null,
+        sponsors: null,
+        venue_name: null,
+        venue_address: null,
+        venue_description: null,
+        venue_coordinates: null,
+        accommodation_info: null,
+        travel_info: null,
+        submission_guidelines: null,
+        submission_deadline: null,
+        notification_date: null,
+        enable_registration: true,
+        enable_abstract_submission: true,
+        max_registrations: null,
+        ...settingsData,
+    };
 
     const query = {
         text: `
       INSERT INTO conference_settings (
-        conference_id, logo_url, primary_color, secondary_color, custom_css,
-        abstract_max_length, keywords_required, custom_fields,
-        enable_reviews, enable_public_schedule, enable_abstract_submission,
-        custom_email_templates, notification_email
+        conference_id, logo_url, banner_url, primary_color, secondary_color,
+        conference_format, about_text, important_dates, topics, sponsors,
+        venue_name, venue_address, venue_description, venue_coordinates,
+        accommodation_info, travel_info, submission_guidelines,
+        submission_deadline, notification_date, enable_registration,
+        enable_abstract_submission, max_registrations
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
       RETURNING *;
     `,
         values: [
-            conference_id,
-            mergedSettings.logo_url || null,
-            mergedSettings.primary_color,
-            mergedSettings.secondary_color,
-            mergedSettings.custom_css || null,
-            mergedSettings.abstract_max_length,
-            mergedSettings.keywords_required,
-            JSON.stringify(mergedSettings.custom_fields),
-            mergedSettings.enable_reviews,
-            mergedSettings.enable_public_schedule,
-            mergedSettings.enable_abstract_submission,
-            JSON.stringify(mergedSettings.custom_email_templates),
-            mergedSettings.notification_email || null,
+            conferenceId,
+            defaultSettings.logo_url,
+            defaultSettings.banner_url,
+            defaultSettings.primary_color,
+            defaultSettings.secondary_color,
+            defaultSettings.conference_format,
+            defaultSettings.about_text,
+            defaultSettings.important_dates,
+            defaultSettings.topics,
+            defaultSettings.sponsors,
+            defaultSettings.venue_name,
+            defaultSettings.venue_address,
+            defaultSettings.venue_description,
+            defaultSettings.venue_coordinates,
+            defaultSettings.accommodation_info,
+            defaultSettings.travel_info,
+            defaultSettings.submission_guidelines,
+            defaultSettings.submission_deadline,
+            defaultSettings.notification_date,
+            defaultSettings.enable_registration,
+            defaultSettings.enable_abstract_submission,
+            defaultSettings.max_registrations,
         ],
     };
 
@@ -47,55 +69,40 @@ async function create(conference_id, settings = {}) {
     return result.rows[0];
 }
 
-async function findByConferenceId(conference_id) {
+async function findByConferenceId(conferenceId) {
     const query = {
         text: 'SELECT * FROM conference_settings WHERE conference_id = $1',
-        values: [conference_id],
+        values: [conferenceId],
     };
 
     const result = await database.query(query);
     return result.rows[0];
 }
 
-async function update(conference_id, updateData) {
+async function update(conferenceId, updateData) {
+    const fields = [];
+    const values = [conferenceId];
+    let paramCount = 2;
+
+    Object.keys(updateData).forEach((key) => {
+        fields.push(`${key} = $${paramCount}`);
+        values.push(updateData[key]);
+        paramCount++;
+    });
+
+    if (fields.length === 0) {
+        return findByConferenceId(conferenceId);
+    }
+
     const query = {
         text: `
-      UPDATE conference_settings SET
-        logo_url = COALESCE($2, logo_url),
-        primary_color = COALESCE($3, primary_color),
-        secondary_color = COALESCE($4, secondary_color),
-        custom_css = COALESCE($5, custom_css),
-        abstract_max_length = COALESCE($6, abstract_max_length),
-        keywords_required = COALESCE($7, keywords_required),
-        custom_fields = COALESCE($8, custom_fields),
-        enable_reviews = COALESCE($9, enable_reviews),
-        enable_public_schedule = COALESCE($10, enable_public_schedule),
-        enable_abstract_submission = COALESCE($11, enable_abstract_submission),
-        custom_email_templates = COALESCE($12, custom_email_templates),
-        notification_email = COALESCE($13, notification_email),
-        updated_at = (now() at time zone 'utc')
+      UPDATE conference_settings
+      SET ${fields.join(', ')},
+          updated_at = (now() at time zone 'utc')
       WHERE conference_id = $1
       RETURNING *;
     `,
-        values: [
-            conference_id,
-            updateData.logo_url,
-            updateData.primary_color,
-            updateData.secondary_color,
-            updateData.custom_css,
-            updateData.abstract_max_length,
-            updateData.keywords_required,
-            updateData.custom_fields
-                ? JSON.stringify(updateData.custom_fields)
-                : null,
-            updateData.enable_reviews,
-            updateData.enable_public_schedule,
-            updateData.enable_abstract_submission,
-            updateData.custom_email_templates
-                ? JSON.stringify(updateData.custom_email_templates)
-                : null,
-            updateData.notification_email,
-        ],
+        values,
     };
 
     const result = await database.query(query);
@@ -106,5 +113,4 @@ export default Object.freeze({
     create,
     findByConferenceId,
     update,
-    DEFAULT_SETTINGS,
 });

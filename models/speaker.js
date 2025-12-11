@@ -1,29 +1,40 @@
 import database from 'infra/database.js';
 
-async function create(speakerData) {
+async function create(conferenceId, speakerData) {
+    const {
+        name,
+        title,
+        organization,
+        bio,
+        photo_url,
+        website,
+        twitter,
+        linkedin,
+        is_keynote = false,
+        display_order = 0,
+    } = speakerData;
+
     const query = {
         text: `
       INSERT INTO speakers (
-        conference_id, name, title, organization, bio,
-        photo_url, website, twitter, linkedin, email,
-        is_keynote, display_order
+        conference_id, name, title, organization, bio, 
+        photo_url, website, twitter, linkedin, is_keynote, display_order
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *;
     `,
         values: [
-            speakerData.conference_id,
-            speakerData.name,
-            speakerData.title || null,
-            speakerData.organization || null,
-            speakerData.bio || null,
-            speakerData.photo_url || null,
-            speakerData.website || null,
-            speakerData.twitter || null,
-            speakerData.linkedin || null,
-            speakerData.email || null,
-            speakerData.is_keynote || false,
-            speakerData.display_order || 0,
+            conferenceId,
+            name,
+            title,
+            organization,
+            bio,
+            photo_url,
+            website,
+            twitter,
+            linkedin,
+            is_keynote,
+            display_order,
         ],
     };
 
@@ -36,7 +47,7 @@ async function findByConferenceId(conferenceId) {
         text: `
       SELECT * FROM speakers
       WHERE conference_id = $1
-      ORDER BY is_keynote DESC, display_order ASC, name ASC
+      ORDER BY is_keynote DESC, display_order ASC, created_at ASC;
     `,
         values: [conferenceId],
     };
@@ -45,52 +56,44 @@ async function findByConferenceId(conferenceId) {
     return result.rows;
 }
 
-async function findById(speakerId) {
-    const query = {
-        text: 'SELECT * FROM speakers WHERE id = $1',
-        values: [speakerId],
-    };
+async function findById(speakerId, conferenceId = null) {
+    const query = conferenceId
+        ? {
+              text: 'SELECT * FROM speakers WHERE id = $1 AND conference_id = $2',
+              values: [speakerId, conferenceId],
+          }
+        : {
+              text: 'SELECT * FROM speakers WHERE id = $1',
+              values: [speakerId],
+          };
 
     const result = await database.query(query);
     return result.rows[0];
 }
 
-async function update(speakerId, updateData) {
+async function update(speakerId, conferenceId, updateData) {
     const fields = [];
-    const values = [speakerId];
-    let index = 2;
+    const values = [speakerId, conferenceId];
+    let paramCount = 3;
 
-    const allowedFields = [
-        'name',
-        'title',
-        'organization',
-        'bio',
-        'photo_url',
-        'website',
-        'twitter',
-        'linkedin',
-        'email',
-        'is_keynote',
-        'display_order',
-    ];
-
-    allowedFields.forEach((field) => {
-        if (updateData[field] !== undefined) {
-            fields.push(`${field} = $${index}`);
-            values.push(updateData[field]);
-            index++;
+    Object.keys(updateData).forEach((key) => {
+        if (updateData[key] !== undefined) {
+            fields.push(`${key} = $${paramCount}`);
+            values.push(updateData[key]);
+            paramCount++;
         }
     });
 
     if (fields.length === 0) {
-        return findById(speakerId);
+        return findById(speakerId, conferenceId);
     }
 
     const query = {
         text: `
       UPDATE speakers
-      SET ${fields.join(', ')}, updated_at = (now() at time zone 'utc')
-      WHERE id = $1
+      SET ${fields.join(', ')},
+          updated_at = (now() at time zone 'utc')
+      WHERE id = $1 AND conference_id = $2
       RETURNING *;
     `,
         values,
@@ -100,10 +103,10 @@ async function update(speakerId, updateData) {
     return result.rows[0];
 }
 
-async function remove(speakerId) {
+async function deleteById(speakerId, conferenceId) {
     const query = {
-        text: 'DELETE FROM speakers WHERE id = $1 RETURNING *',
-        values: [speakerId],
+        text: 'DELETE FROM speakers WHERE id = $1 AND conference_id = $2 RETURNING *;',
+        values: [speakerId, conferenceId],
     };
 
     const result = await database.query(query);
@@ -115,5 +118,5 @@ export default Object.freeze({
     findByConferenceId,
     findById,
     update,
-    remove,
+    deleteById,
 });

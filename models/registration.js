@@ -94,9 +94,16 @@ async function findByUserId(userId, options = {}) {
 async function findByUserAndConference(userId, conferenceId) {
     const query = {
         text: `
-      SELECT r.*
+      SELECT 
+        r.*,
+        c.title as conference_title,
+        c.slug as conference_slug,
+        c.start_date,
+        c.end_date,
+        c.location
       FROM registrations r
-      WHERE r.user_id = $1 AND r.conference_id = $2
+      JOIN conferences c ON r.conference_id = c. id
+      WHERE r.user_id = $1 AND r.conference_id = $2 AND r.status != 'cancelled';
     `,
         values: [userId, conferenceId],
     };
@@ -198,7 +205,12 @@ async function getRegistrationCount(conferenceId, status = null) {
 }
 
 function generateConfirmationCode() {
-    return crypto.randomBytes(16).toString('hex').toUpperCase();
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
 }
 
 const REGISTRATION_TYPES = {
